@@ -5,7 +5,7 @@ import { MatchStatus, TransactionType, TransactionStatus } from '@prisma/client'
 
 export default async function ManagerOverview() {
   const session = await getSession();
-  const managerId = session?.user?.id;
+  const managerId = session?.id;
 
   if (!managerId) return null;
 

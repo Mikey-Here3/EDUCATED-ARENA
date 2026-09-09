@@ -7,7 +7,7 @@ import { MatchStatus } from '@prisma/client';
 
 export default async function MatchBoard() {
   const session = await getSession();
-  const managerId = session?.user?.id;
+  const managerId = session?.id;
 
   if (!managerId) return null;
 

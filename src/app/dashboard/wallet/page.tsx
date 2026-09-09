@@ -99,7 +99,37 @@ export default function WalletPage() {
     e.preventDefault();
     setDepositLoading(true);
     setDepositMessage(null);
+
+    const fileInput = document.getElementById('depositScreenshot') as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+
+    if (!file) {
+      setDepositMessage({ type: 'error', text: 'Please select a screenshot to upload.' });
+      setDepositLoading(false);
+      return;
+    }
+
     try {
+      // 1. Upload the screenshot
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'PAYMENT_SCREENSHOT');
+
+      const uploadRes = await fetch('/api/uploads', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok) {
+        setDepositMessage({ type: 'error', text: uploadJson.error || 'Failed to upload screenshot' });
+        setDepositLoading(false);
+        return;
+      }
+
+      const screenshotId = uploadJson.fileAsset.id;
+
+      // 2. Submit the deposit
       const res = await fetch('/api/wallet/deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,6 +137,7 @@ export default function WalletPage() {
           amount: parseFloat(depositAmount),
           method: depositMethod,
           transactionReference: depositRef,
+          screenshotId,
         }),
       });
       const json = await res.json();
@@ -116,6 +147,7 @@ export default function WalletPage() {
           text: json.message || 'Deposit submitted! Manager is verifying your payment (usually 2-5 mins).',
         });
         setDepositRef('');
+        if (fileInput) fileInput.value = '';
         loadData();
       } else {
         setDepositMessage({ type: 'error', text: json.error || 'Failed to submit deposit' });
@@ -431,15 +463,32 @@ export default function WalletPage() {
               </p>
             </div>
 
+            {/* Image Upload Input */}
+            <div>
+              <label className="text-xs font-semibold text-slate-300 mb-1.5 block">
+                Upload Payment Screenshot (Required):
+              </label>
+              <input
+                type="file"
+                id="depositScreenshot"
+                accept="image/*"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#00f59b] file:text-black hover:file:bg-[#00c853] transition-all cursor-pointer"
+                required
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Clear screenshot showing the transaction amount and TID.
+              </p>
+            </div>
+
             {/* Submit Button */}
             <button
               type="submit"
               disabled={depositLoading || !depositRef}
-              className="w-full battle-btn-green py-4 rounded-xl font-heading font-black text-black text-base flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+              className="w-full battle-btn-green py-4 rounded-xl font-heading font-black text-black text-base flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 mt-4"
             >
               {depositLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> VERIFYING PAYMENT...
+                  <Loader2 className="w-5 h-5 animate-spin" /> UPLOADING &amp; VERIFYING...
                 </>
               ) : (
                 <>

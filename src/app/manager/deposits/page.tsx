@@ -81,10 +81,21 @@ export default function DepositsReview() {
                       </div>
                     </td>
                     <td className="p-4 text-green-400 font-bold">PKR {deposit.amount}</td>
-                    <td className="p-4 text-gray-300">{deposit.paymentMethod}</td>
-                    <td className="p-4 text-gray-400 font-mono">{deposit.transactionId}</td>
+                    <td className="p-4 text-gray-300">{deposit.method}</td>
+                    <td className="p-4 text-gray-400 font-mono">{deposit.transactionReference}</td>
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-2">
+                        {deposit.screenshot?.url && (
+                          <a 
+                            href={deposit.screenshot.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded transition-colors"
+                            title="View Screenshot"
+                          >
+                            <FileImage className="w-4 h-4" />
+                          </a>
+                        )}
                         <button 
                           onClick={() => handleAction(deposit.id, 'APPROVE')}
                           className="p-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded transition-colors" 

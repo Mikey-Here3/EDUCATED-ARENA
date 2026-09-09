@@ -90,6 +90,7 @@ export const depositSchema = z.object({
   method: z.string().min(1),
   transactionReference: z.string().min(5),
   accountName: z.string().optional(),
+  screenshotId: z.string().uuid().optional(),
 });
 
 export const withdrawalSchema = z.object({

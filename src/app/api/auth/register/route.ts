@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { hashPassword, generateToken } from '@/lib/auth/password';
+import { hashPassword, generateToken, generateOTP } from '@/lib/auth/password';
 import { registerSchema } from '@/lib/validation/schemas';
 import { rateLimit } from '@/lib/auth/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hashPassword(password);
-    const verifyToken = generateToken();
+    const verifyToken = generateOTP(6); // 6-digit OTP
     const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Database transaction: create User + Profile + Wallet + EmailVerification in atomic step

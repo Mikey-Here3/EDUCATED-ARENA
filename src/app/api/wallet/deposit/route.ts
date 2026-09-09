@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid deposit submission', details: parsed.error.format() }, { status: 400 });
     }
 
-    const { amount, method, transactionReference, accountName } = parsed.data;
+    const { amount, method, transactionReference, accountName, screenshotId } = parsed.data;
 
     const wallet = await prisma.wallet.findUnique({
       where: { userId: session.id },
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
         method: method as PaymentMethodType,
         transactionReference,
         accountName,
+        screenshotId,
         status: DepositStatus.PENDING,
       },
     });

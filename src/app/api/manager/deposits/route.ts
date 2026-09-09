@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
           reviewedBy: {
             select: { id: true, username: true, displayName: true },
           },
+          screenshot: true,
         },
       }),
       prisma.deposit.count({ where }),

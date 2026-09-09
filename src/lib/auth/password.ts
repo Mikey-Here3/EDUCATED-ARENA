@@ -10,8 +10,17 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-export function generateToken(length: number = 32): string {
+export function generateToken(length: number = 64): string {
   return crypto.randomBytes(length).toString('hex');
+}
+
+export function generateOTP(length: number = 6): string {
+  const digits = '0123456789';
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    otp += digits[Math.floor(Math.random() * 10)];
+  }
+  return otp;
 }
 
 export function isPasswordStrong(password: string): boolean {

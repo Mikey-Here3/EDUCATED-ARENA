@@ -133,7 +133,58 @@ export async function POST(req: NextRequest) {
       expiresAt,
     } = parsed.data;
 
-    // Check user's wallet available balance
+    // ── Phase 14.7: Expiry Validation ────────────────────────────────────
+    const expiryDate = expiresAt ? new Date(expiresAt) : null;
+    const minExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
+    if (expiryDate && expiryDate < minExpiry) {
+      return NextResponse.json({ error: 'Challenge expiry must be at least 30 minutes from now.' }, { status: 400 });
+    }
+
+    // ── Phase 14.7: Category/Mode/Map Compatibility ──────────────────────
+    const gameMode = await prisma.gameMode.findUnique({
+      where: { id: gameModeId },
+      include: {
+        category: { select: { id: true, platform: true } },
+        maps: { include: { map: { select: { id: true } } } },
+      },
+    });
+
+    if (!gameMode || !gameMode.isActive) {
+      return NextResponse.json({ error: 'Invalid or inactive game mode selected.' }, { status: 400 });
+    }
+
+    // Validate mode belongs to the selected category
+    if (gameMode.categoryId !== categoryId) {
+      return NextResponse.json({ error: 'Game mode does not belong to the selected category.' }, { status: 400 });
+    }
+
+    // Validate format is allowed by the game mode
+    const allowedFormats = gameMode.allowedFormats as string[];
+    if (!allowedFormats.includes(format)) {
+      return NextResponse.json(
+        { error: `Format "${format}" is not supported by game mode "${gameMode.name}". Supported: ${allowedFormats.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // ── Phase 14.7: PC/Mobile Isolation ─────────────────────────────────
+    const categoryPlatform = gameMode.category.platform;
+    if (platform !== categoryPlatform) {
+      return NextResponse.json(
+        { error: `Platform mismatch. This category requires ${categoryPlatform} players. You cannot mix PC and Mobile.` },
+        { status: 400 }
+      );
+    }
+
+    // ── Phase 14.7: Map Compatibility ────────────────────────────────────
+    if (mapId) {
+      const validMapIds = gameMode.maps.map((mm) => mm.map.id);
+      if (validMapIds.length > 0 && !validMapIds.includes(mapId)) {
+        return NextResponse.json({ error: 'Selected map is not valid for this game mode.' }, { status: 400 });
+      }
+    }
+
+    // ── Wallet validation & atomic reservation ────────────────────────────
     const wallet = await prisma.wallet.findUnique({
       where: { userId: session.id },
     });
@@ -148,7 +199,7 @@ export async function POST(req: NextRequest) {
     }
 
     const publicId = generatePublicId('EG-CH');
-    // Calculate total prize pool (2x entry fee)
+    // Calculate prize pool from central financial config: 2x entry
     const prizePool = entryFee * 2;
 
     const challenge = await prisma.$transaction(async (tx) => {
@@ -166,7 +217,7 @@ export async function POST(req: NextRequest) {
           prizePool: new Prisma.Decimal(prizePool),
           visibility: (visibility as ChallengeVisibility) || ChallengeVisibility.PUBLIC,
           status: ChallengeStatus.OPEN,
-          expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000),
+          expiresAt: expiryDate || new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
       });
 
@@ -196,3 +247,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Failed to create challenge' }, { status: 500 });
   }
 }
+

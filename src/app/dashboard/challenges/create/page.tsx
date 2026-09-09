@@ -1,72 +1,170 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Swords, ArrowLeft, ArrowRight, Shield, Zap, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Swords, ArrowLeft, ArrowRight, Shield, Zap, CheckCircle2, AlertCircle, Loader2, Monitor, Smartphone, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
+
+// ── Types ──────────────────────────────────────────────────────────────────
+interface Category { id: string; name: string; slug: string; platform: string; description?: string }
+interface GameMode { id: string; name: string; slug: string; description?: string; allowedFormats: string[] }
+interface MapItem { id: string; name: string; slug: string }
+
+interface StakePreview {
+  entryFee: number;
+  opponentEntryFee: number;
+  totalPot: number;
+  platformFee: number;
+  loserRefund: number;
+  winnerPrize: number;
+  platformFeePercent: number;
+}
+
+function calcStakes(entryFee: number): StakePreview {
+  const fee = Math.round(entryFee);
+  const totalPot = fee * 2;
+  const platformFee = Math.round(totalPot * 0.10);
+  const loserRefund = 10;
+  const winnerPrize = totalPot - platformFee - loserRefund;
+  return { entryFee: fee, opponentEntryFee: fee, totalPot, platformFee, loserRefund, winnerPrize, platformFeePercent: 10 };
+}
+
+// ── Category → Valid formats (client-side reflection of server config) ──────
+const CATEGORY_FORMAT_MAP: Record<string, string[]> = {
+  'mobile-esports': ['1v1', '2v2', '4v4'],
+  'craftland-custom': ['1v1', '2v2', '3v3', '4v4', '5v5', '6v6'],
+  'battle-royale': ['1v1', '2v2', '4v4', '20 Players', '32 Players', '48 Players'],
+  'pc-emulator-league': ['1v1', '2v2', '4v4'],
+};
+
+const MIN_EXPIRY_MINUTES = 30;
 
 export default function CreateChallengePage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [optionsLoading, setOptionsLoading] = useState(true);
 
-  const [categories, setCategories] = useState<any[]>([
-    { id: 'cat-esports', name: 'Mobile Esports', platform: 'MOBILE', desc: 'Official competitive Clash Squad' },
-    { id: 'cat-craftland', name: 'Craftland Custom', platform: 'MOBILE', desc: 'Custom maps & specialized duels' },
-    { id: 'cat-br', name: 'Battle Royale', platform: 'MOBILE', desc: 'Classic survival lobbies' },
-    { id: 'cat-pc', name: 'PC Emulator League', platform: 'PC', desc: 'Isolated PC/Emulator only queue' },
-  ]);
+  // Data from server
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [gameModes, setGameModes] = useState<GameMode[]>([]);
+  const [maps, setMaps] = useState<MapItem[]>([]);
 
-  const [modes, setModes] = useState<any[]>([
-    { id: 'mode-cs', name: 'Standard Clash Squad', desc: 'Standard 4v4 format' },
-    { id: 'mode-deagle', name: 'Desert Eagle Only (One Tap)', desc: 'Pure headshot challenge' },
-    { id: 'mode-m590', name: 'M590 Shotgun Only', desc: 'Close-quarters shotgun duel' },
-  ]);
+  // Wizard state
+  const [categoryId, setCategoryId] = useState('');
+  const [categorySlug, setCategorySlug] = useState('');
+  const [platform, setPlatform] = useState<'MOBILE' | 'PC'>('MOBILE');
+  const [format, setFormat] = useState('');
+  const [gameModeId, setGameModeId] = useState('');
+  const [mapId, setMapId] = useState('');
+  const [entryFee, setEntryFee] = useState('200');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE' | 'DIRECT'>('PUBLIC');
+  const [expiryHours, setExpiryHours] = useState('24');
 
-  const [maps, setMaps] = useState<any[]>([
-    { id: 'map-bermuda', name: 'Bermuda' },
-    { id: 'map-purgatory', name: 'Purgatory' },
-    { id: 'map-kalahari', name: 'Kalahari' },
-    { id: 'map-nextera', name: 'Next Era' },
-  ]);
+  const validFormats = CATEGORY_FORMAT_MAP[categorySlug] || [];
+  const stakes = calcStakes(Number(entryFee) || 0);
 
-  const [formData, setFormData] = useState({
-    categoryId: 'cat-esports',
-    format: '1v1',
-    gameModeId: 'mode-deagle',
-    mapId: 'map-bermuda',
-    platform: 'MOBILE',
-    entryFee: '200',
-    visibility: 'PUBLIC',
-  });
+  // ── Load initial categories ──────────────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/game-options')
+      .then((r) => r.json())
+      .then((d) => {
+        setCategories(d.categories || []);
+        setMaps(d.maps || []);
+        // Auto-select first category
+        if (d.categories?.length > 0) {
+          const first = d.categories[0];
+          setCategoryId(first.id);
+          setCategorySlug(first.slug);
+          setPlatform(first.platform as 'MOBILE' | 'PC');
+        }
+      })
+      .finally(() => setOptionsLoading(false));
+  }, []);
 
-  const entryFeeNum = parseFloat(formData.entryFee) || 0;
-  const prizePool = entryFeeNum * 2;
-  const platformFee = prizePool * 0.1;
-  const estimatedPrize = prizePool - platformFee;
+  // ── Reload game modes when category or format changes ───────────────────
+  useEffect(() => {
+    if (!categoryId) return;
+    const params = new URLSearchParams({ categoryId });
+    if (format) params.set('format', format);
+    
+    setGameModeId(''); // Reset mode when category/format changes
 
+    fetch(`/api/game-options?${params}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setGameModes(d.gameModes || []);
+      });
+  }, [categoryId, format]);
+
+  // ── Reload maps when game mode changes ──────────────────────────────────
+  useEffect(() => {
+    if (!gameModeId) return;
+    setMapId(''); // Reset map when mode changes
+
+    fetch(`/api/game-options?gameModeId=${gameModeId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setMaps(d.maps || []);
+        if (d.maps?.length === 1) setMapId(d.maps[0].id); // Auto-select single map
+      });
+  }, [gameModeId]);
+
+  // ── When category changes ────────────────────────────────────────────────
+  const handleCategorySelect = (cat: Category) => {
+    setCategoryId(cat.id);
+    setCategorySlug(cat.slug);
+    setPlatform(cat.platform as 'MOBILE' | 'PC');
+    // Clear dependent selections
+    setFormat('');
+    setGameModeId('');
+    setMapId('');
+  };
+
+  // ── When format changes ──────────────────────────────────────────────────
+  const handleFormatSelect = (fmt: string) => {
+    setFormat(fmt);
+    // Clear dependent selections
+    setGameModeId('');
+    setMapId('');
+  };
+
+  // ── Validate step 1 ──────────────────────────────────────────────────────
+  const step1Valid = categoryId && format && gameModeId;
+  const step2Valid = mapId && Number(entryFee) >= 50;
+
+  // ── Submit ───────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!step1Valid || !step2Valid) return;
     setLoading(true);
     setError('');
+
+    // Validate expiry client-side
+    const expiryMins = Number(expiryHours) * 60;
+    if (expiryMins < MIN_EXPIRY_MINUTES) {
+      setError('Challenge must be open for at least 30 minutes.');
+      setLoading(false);
+      return;
+    }
+
+    const expiresAt = new Date(Date.now() + expiryMins * 60 * 1000).toISOString();
 
     try {
       const res = await fetch('/api/challenges', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          categoryId: formData.categoryId,
-          gameModeId: formData.gameModeId,
-          mapId: formData.mapId,
-          format: formData.format,
-          platform: formData.platform,
-          entryFee: entryFeeNum,
-          visibility: formData.visibility,
+          categoryId,
+          gameModeId,
+          mapId,
+          format,
+          platform,
+          entryFee: Math.round(Number(entryFee)),
+          visibility,
+          expiresAt,
         }),
       });
 
@@ -84,15 +182,28 @@ export default function CreateChallengePage() {
     }
   }
 
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const selectedMode = gameModes.find((m) => m.id === gameModeId);
+  const selectedMap = maps.find((m) => m.id === mapId);
+
+  if (optionsLoading) {
+    return (
+      <div className="max-w-3xl mx-auto flex items-center justify-center min-h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 pb-16">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/challenges" className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-slate-400 hover:text-white">
+        <Link href="/dashboard/challenges" className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-slate-400 hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Create New Challenge</h1>
-          <p className="text-xs sm:text-sm text-slate-400">Configure game settings, rules, and entry stake</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Post a Fight</h1>
+          <p className="text-xs sm:text-sm text-slate-400">Configure game settings, rules, and your entry stake</p>
         </div>
       </div>
 
@@ -103,271 +214,356 @@ export default function CreateChallengePage() {
         </div>
       )}
 
-      {/* Wizard Progress */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4 text-xs font-semibold">
+      {/* Progress Steps */}
+      <div className="flex items-center gap-2 text-xs font-bold">
         {[
-          { num: 1, label: 'Mode & Format' },
+          { num: 1, label: 'Category & Mode' },
           { num: 2, label: 'Map & Stakes' },
-          { num: 3, label: 'Review & Confirm' },
-        ].map((s) => (
-          <div
-            key={s.num}
-            className={`flex items-center gap-2 ${step >= s.num ? 'text-violet-400' : 'text-slate-500'}`}
-          >
-            <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                step >= s.num ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-slate-500'
-              }`}
-            >
-              {s.num}
+          { num: 3, label: 'Review & Publish' },
+        ].map((s, i) => (
+          <div key={s.num} className="flex items-center gap-2 flex-1">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all ${
+              step >= s.num ? 'bg-violet-600 text-white shadow-[0_0_12px_rgba(124,58,237,0.5)]' : 'bg-zinc-800 text-slate-500'
+            }`}>
+              {step > s.num ? <CheckCircle2 className="w-4 h-4" /> : s.num}
             </div>
-            <span className="hidden sm:inline">{s.label}</span>
+            <span className={`hidden sm:inline transition-colors ${step >= s.num ? 'text-violet-300' : 'text-slate-500'}`}>{s.label}</span>
+            {i < 2 && <div className="h-px flex-1 bg-zinc-800 hidden sm:block" />}
           </div>
         ))}
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Step 1 */}
+        {/* ─── STEP 1: Category, Format, Game Mode ─────────────────────── */}
         {step === 1 && (
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader>
-              <CardTitle>Select Game Category & Format</CardTitle>
-              <CardDescription>Choose how you want to challenge opponents.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Category
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {categories.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => {
-                        setFormData({ ...formData, categoryId: c.id, platform: c.platform });
-                      }}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                        formData.categoryId === c.id
-                          ? 'border-violet-500 bg-violet-500/10'
-                          : 'border-zinc-800 bg-black/40 hover:border-zinc-700'
-                      }`}
-                    >
-                      <h4 className="font-bold text-white text-sm">{c.name}</h4>
-                      <p className="text-xs text-slate-400 mt-1">{c.desc}</p>
-                      <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-slate-300">
-                        {c.platform}
-                      </span>
+          <div className="space-y-5">
+            {/* Category */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">1. Select Category</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategorySelect(cat)}
+                    className={`p-4 rounded-xl border text-left transition-all ${
+                      categoryId === cat.id
+                        ? 'border-violet-500 bg-violet-500/10 shadow-[0_0_15px_rgba(124,58,237,0.2)]'
+                        : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      {cat.platform === 'PC' ? (
+                        <Monitor className="w-4 h-4 text-cyan-400" />
+                      ) : (
+                        <Smartphone className="w-4 h-4 text-emerald-400" />
+                      )}
+                      <h4 className="font-bold text-white text-sm">{cat.name}</h4>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs text-slate-400">{cat.description}</p>
+                    <span className={`inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold ${
+                      cat.platform === 'PC' ? 'bg-cyan-900/60 text-cyan-300' : 'bg-emerald-900/60 text-emerald-300'
+                    }`}>
+                      {cat.platform === 'PC' ? '💻 PC / Emulator' : '📱 Mobile'}
+                    </span>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Match Format
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                  {['1v1', '2v2', '4v4', '6v6', 'GvG'].map((fmt) => (
+            {/* Format — only shows valid formats for selected category */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">2. Match Format</h3>
+                <span className="text-xs text-slate-500">{selectedCategory?.name || 'Select a category'}</span>
+              </div>
+              {validFormats.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">Select a category above to see available formats.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {validFormats.map((fmt) => (
                     <button
-                      type="button"
                       key={fmt}
-                      onClick={() => setFormData({ ...formData, format: fmt })}
-                      className={`py-3 rounded-xl font-bold text-xs border transition-all ${
-                        formData.format === fmt
-                          ? 'border-violet-500 bg-violet-500/20 text-white glow-purple-sm'
-                          : 'border-zinc-800 bg-black/40 text-slate-400 hover:text-white'
+                      type="button"
+                      onClick={() => handleFormatSelect(fmt)}
+                      className={`px-4 py-2.5 rounded-xl font-bold text-xs border transition-all ${
+                        format === fmt
+                          ? 'border-violet-500 bg-violet-500/20 text-white shadow-[0_0_10px_rgba(124,58,237,0.3)]'
+                          : 'border-zinc-700 bg-black/40 text-slate-400 hover:text-white hover:border-zinc-600'
                       }`}
                     >
                       {fmt}
                     </button>
                   ))}
                 </div>
-              </div>
+              )}
+              {format && (
+                <p className="text-[11px] text-violet-400">
+                  ✓ {format} selected
+                </p>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Game Mode
-                </label>
+            {/* Game Mode — filtered by category + format */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">3. Game Mode</h3>
+              {!format ? (
+                <p className="text-xs text-slate-500 italic">Select a format above to see compatible game modes.</p>
+              ) : gameModes.length === 0 ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                  No game modes available for <strong>{format}</strong> in <strong>{selectedCategory?.name}</strong>. 
+                  Contact an admin to add modes for this combination.
+                </div>
+              ) : (
                 <div className="space-y-2">
-                  {modes.map((m) => (
-                    <div
-                      key={m.id}
-                      onClick={() => setFormData({ ...formData, gameModeId: m.id })}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                        formData.gameModeId === m.id
+                  {gameModes.map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setGameModeId(mode.id)}
+                      className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
+                        gameModeId === mode.id
                           ? 'border-violet-500 bg-violet-500/10'
-                          : 'border-zinc-800 bg-black/40 hover:border-zinc-700'
+                          : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
                       }`}
                     >
                       <div>
-                        <h5 className="font-bold text-white text-sm">{m.name}</h5>
-                        <p className="text-xs text-slate-400">{m.desc}</p>
+                        <h5 className="font-bold text-white text-sm">{mode.name}</h5>
+                        <p className="text-xs text-slate-400">{mode.description}</p>
                       </div>
-                      {formData.gameModeId === m.id && <CheckCircle2 className="w-5 h-5 text-violet-400 shrink-0" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                onClick={() => setStep(2)}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold"
-              >
-                Continue to Stakes <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 2 */}
-        {step === 2 && (
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader>
-              <CardTitle>Map & Entry Stakes</CardTitle>
-              <CardDescription>Specify the arena map and entry fee in PKR.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Map
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {maps.map((map) => (
-                    <div
-                      key={map.id}
-                      onClick={() => setFormData({ ...formData, mapId: map.id })}
-                      className={`p-4 rounded-xl border cursor-pointer text-center transition-all ${
-                        formData.mapId === map.id
-                          ? 'border-violet-500 bg-violet-500/20 text-white font-bold'
-                          : 'border-zinc-800 bg-black/40 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {map.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Entry Fee (PKR)
-                </label>
-                <div className="grid grid-cols-4 gap-2 mb-3">
-                  {['100', '200', '500', '1000'].map((val) => (
-                    <button
-                      type="button"
-                      key={val}
-                      onClick={() => setFormData({ ...formData, entryFee: val })}
-                      className={`py-2 rounded-lg text-xs font-semibold border ${
-                        formData.entryFee === val
-                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 font-bold'
-                          : 'border-zinc-800 bg-black/40 text-slate-400'
-                      }`}
-                    >
-                      PKR {val}
+                      {gameModeId === mode.id && <CheckCircle2 className="w-5 h-5 text-violet-400 shrink-0" />}
                     </button>
                   ))}
                 </div>
-                <Input
-                  type="number"
-                  min="50"
-                  step="50"
-                  required
-                  value={formData.entryFee}
-                  onChange={(e) => setFormData({ ...formData, entryFee: e.target.value })}
-                  className="bg-black/50 border-zinc-800"
-                  placeholder="Custom entry amount"
-                />
-              </div>
+              )}
+            </div>
 
-              <div className="p-4 rounded-xl bg-violet-900/20 border border-violet-800/40 space-y-2 text-xs">
-                <div className="flex justify-between text-slate-300">
-                  <span>Total Match Stakes (2x Entry)</span>
-                  <span className="font-bold text-white">{formatCurrency(prizePool)}</span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Platform Fee (10%)</span>
-                  <span>{formatCurrency(platformFee)}</span>
-                </div>
-                <div className="flex justify-between border-t border-violet-800/40 pt-2 text-sm">
-                  <span className="font-bold text-violet-300">Winner Prize Pool</span>
-                  <span className="font-extrabold text-amber-400">{formatCurrency(estimatedPrize)}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button type="button" variant="secondary" onClick={() => setStep(1)} className="flex-1">
-                  Back
-                </Button>
-                <Button type="button" onClick={() => setStep(3)} className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-bold">
-                  Review & Publish <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              disabled={!step1Valid}
+              className="w-full py-4 rounded-xl font-black text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(124,58,237,0.3)]"
+            >
+              Continue to Map & Stakes <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         )}
 
-        {/* Step 3 */}
+        {/* ─── STEP 2: Map, Entry Fee, Visibility, Expiry ──────────────── */}
+        {step === 2 && (
+          <div className="space-y-5">
+            {/* Map */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Select Map</h3>
+              {maps.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">No maps configured for this game mode.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {maps.map((map) => (
+                    <button
+                      key={map.id}
+                      type="button"
+                      onClick={() => setMapId(map.id)}
+                      className={`p-4 rounded-xl border text-center font-bold text-sm transition-all ${
+                        mapId === map.id
+                          ? 'border-violet-500 bg-violet-500/20 text-white shadow-[0_0_12px_rgba(124,58,237,0.3)]'
+                          : 'border-zinc-800 bg-black/40 text-slate-400 hover:text-white hover:border-zinc-600'
+                      }`}
+                    >
+                      {map.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Entry Fee */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Entry Stake (PKR)</h3>
+              <div className="grid grid-cols-4 gap-2">
+                {['100', '200', '500', '1000'].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setEntryFee(val)}
+                    className={`py-3 rounded-xl text-xs font-bold border transition-all ${
+                      entryFee === val
+                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                        : 'border-zinc-800 bg-black/40 text-slate-400 hover:border-zinc-600 hover:text-white'
+                    }`}
+                  >
+                    PKR {val}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                min="50"
+                step="10"
+                value={entryFee}
+                onChange={(e) => setEntryFee(e.target.value)}
+                className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm focus:border-violet-500 focus:outline-none transition-all"
+                placeholder="Custom amount (min PKR 50)"
+              />
+
+              {/* Stakes Preview — from the same server-side calculation */}
+              {Number(entryFee) >= 50 && (
+                <div className="rounded-xl bg-gradient-to-br from-violet-900/20 to-indigo-900/20 border border-violet-800/40 p-4 space-y-2 text-xs">
+                  <p className="text-[10px] text-violet-400 font-bold uppercase tracking-wider mb-3">💰 Match Financials Preview</p>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Your Entry Fee</span>
+                    <span className="font-bold text-white">{formatCurrency(stakes.entryFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Opponent Entry Fee</span>
+                    <span className="font-bold text-white">{formatCurrency(stakes.opponentEntryFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400 border-t border-violet-800/30 pt-2">
+                    <span>Total Match Stakes</span>
+                    <span className="font-bold text-white">{formatCurrency(stakes.totalPot)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Platform Fee ({stakes.platformFeePercent}%)</span>
+                    <span className="text-red-400">- {formatCurrency(stakes.platformFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Losing Side Refund</span>
+                    <span className="text-blue-400">- {formatCurrency(stakes.loserRefund)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-violet-800/40 pt-2">
+                    <span className="font-black text-violet-300 uppercase text-[11px]">🏆 Winner Prize</span>
+                    <span className="font-extrabold text-amber-400 text-sm">{formatCurrency(stakes.winnerPrize)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Visibility */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Visibility</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {(['PUBLIC', 'PRIVATE', 'DIRECT'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVisibility(v)}
+                    className={`py-3 rounded-xl text-xs font-bold border transition-all ${
+                      visibility === v
+                        ? 'border-violet-500 bg-violet-500/20 text-white'
+                        : 'border-zinc-800 bg-black/40 text-slate-400 hover:border-zinc-600'
+                    }`}
+                  >
+                    {v === 'PUBLIC' ? '🌐 Public' : v === 'PRIVATE' ? '🔒 Private' : '🎯 Direct'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Expiry */}
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Challenge Expiry</h3>
+              <select
+                value={expiryHours}
+                onChange={(e) => setExpiryHours(e.target.value)}
+                className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm focus:border-violet-500 focus:outline-none transition-all appearance-none"
+              >
+                <option value="1">1 Hour</option>
+                <option value="2">2 Hours</option>
+                <option value="6">6 Hours</option>
+                <option value="12">12 Hours</option>
+                <option value="24">24 Hours (Default)</option>
+                <option value="48">48 Hours</option>
+              </select>
+              <p className="text-[11px] text-slate-500">Minimum expiry is 30 minutes. After this time, the challenge auto-cancels and funds are refunded.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setStep(1)} className="flex-1 py-4 rounded-xl font-bold text-sm border border-zinc-700 text-slate-300 hover:text-white transition-all">
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                disabled={!step2Valid}
+                className="flex-1 py-4 rounded-xl font-black text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Review & Publish <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STEP 3: Review ──────────────────────────────────────────── */}
         {step === 3 && (
-          <Card className="bg-zinc-900/50 border-zinc-800">
-            <CardHeader>
-              <CardTitle>Confirm Challenge Publication</CardTitle>
-              <CardDescription>
-                Upon publishing, PKR {entryFeeNum} will be reserved from your available wallet balance.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="p-5 rounded-2xl bg-black/60 border border-zinc-800 space-y-3 text-sm">
-                <div className="flex justify-between pb-2 border-b border-zinc-800">
-                  <span className="text-slate-400">Format & Platform</span>
-                  <span className="font-bold text-white">{formData.format} ({formData.platform})</span>
+          <div className="space-y-5">
+            <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-0">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Challenge Summary</h3>
+
+              {[
+                { label: 'Category', value: selectedCategory?.name || '—' },
+                { label: 'Platform', value: platform === 'PC' ? '💻 PC / Emulator' : '📱 Mobile' },
+                { label: 'Format', value: format },
+                { label: 'Game Mode', value: selectedMode?.name || '—' },
+                { label: 'Map', value: selectedMap?.name || '—' },
+                { label: 'Visibility', value: visibility },
+                { label: 'Expiry', value: `${expiryHours} hour(s)` },
+              ].map((row) => (
+                <div key={row.label} className="flex justify-between items-center py-2.5 border-b border-zinc-800 text-sm">
+                  <span className="text-slate-400">{row.label}</span>
+                  <span className="font-bold text-white text-right">{row.value}</span>
                 </div>
-                <div className="flex justify-between pb-2 border-b border-zinc-800">
-                  <span className="text-slate-400">Mode & Map</span>
-                  <span className="font-bold text-white">
-                    {modes.find((m) => m.id === formData.gameModeId)?.name} • {maps.find((m) => m.id === formData.mapId)?.name}
-                  </span>
-                </div>
-                <div className="flex justify-between pb-2 border-b border-zinc-800">
+              ))}
+
+              {/* Financial breakdown */}
+              <div className="pt-3 space-y-2 text-sm">
+                <div className="flex justify-between">
                   <span className="text-slate-400">Your Entry Fee</span>
-                  <span className="font-bold text-emerald-400">{formatCurrency(entryFeeNum)}</span>
+                  <span className="font-bold text-emerald-400">{formatCurrency(stakes.entryFee)}</span>
                 </div>
-                <div className="flex justify-between pt-1">
-                  <span className="font-bold text-violet-300">Total Winner Prize</span>
-                  <span className="font-extrabold text-amber-400 text-base">{formatCurrency(estimatedPrize)}</span>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Total Match Stakes</span>
+                  <span className="font-bold text-white">{formatCurrency(stakes.totalPot)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Platform Fee ({stakes.platformFeePercent}%)</span>
+                  <span className="text-red-400">- {formatCurrency(stakes.platformFee)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Losing Side Refund</span>
+                  <span className="text-blue-400">- {formatCurrency(stakes.loserRefund)}</span>
+                </div>
+                <div className="flex justify-between border-t border-zinc-700 pt-2">
+                  <span className="font-black text-violet-300 uppercase text-xs">🏆 Winner Prize</span>
+                  <span className="font-extrabold text-amber-400 text-lg">{formatCurrency(stakes.winnerPrize)}</span>
                 </div>
               </div>
+            </div>
 
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-3">
-                <Shield className="w-5 h-5 shrink-0 mt-0.5" />
-                <p>
-                  You can cancel this challenge at any time before an opponent accepts it to receive a full instant refund to your wallet balance.
-                </p>
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-3">
+              <Shield className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold mb-1">Publishing this challenge will reserve PKR {stakes.entryFee} from your wallet.</p>
+                <p>You can cancel before an opponent accepts for a full instant refund. After a match is fixed, only a Manager/Admin can cancel.</p>
               </div>
+            </div>
 
-              <div className="flex gap-3">
-                <Button type="button" variant="secondary" onClick={() => setStep(2)} className="flex-1">
-                  Back
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold glow-purple"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4 mr-2" /> Publish Challenge
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setStep(2)} className="flex-1 py-4 rounded-xl font-bold text-sm border border-zinc-700 text-slate-300 hover:text-white transition-all">
+                ← Back
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-4 rounded-xl font-black text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60 shadow-[0_0_20px_rgba(124,58,237,0.4)]"
+              >
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Publishing...</>
+                ) : (
+                  <><Zap className="w-4 h-4" /> Publish Challenge</>
+                )}
+              </button>
+            </div>
+          </div>
         )}
       </form>
     </div>

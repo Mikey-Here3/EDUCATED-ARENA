@@ -115,22 +115,21 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 }
 
 export async function sendVerificationEmail(to: string, token: string): Promise<void> {
-  const verifyUrl = `${APP_CONFIG.app.url}/verify-email?token=${token}`;
   await sendEmail({
     to,
-    subject: 'Verify Your Email — Educated Gamer Arena',
+    subject: 'Your Verification Code — Educated Gamer Arena',
     html: `
       <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px;background:#0f0f0f;color:#fff;border-radius:12px">
         <h1 style="color:#DC2626;font-size:24px;margin-bottom:16px">Welcome to Educated Gamer Arena</h1>
-        <p>Click the button below to verify your email address:</p>
-        <a href="${verifyUrl}" style="display:inline-block;margin:24px 0;padding:12px 32px;background:#DC2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold">
-          Verify Email
-        </a>
+        <p>Please enter the following 6-digit code to verify your email address:</p>
+        <div style="font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 4px; padding: 20px; background-color: #222; text-align: center; border: 1px solid #333; border-radius: 8px; margin: 20px 0;">
+          ${token}
+        </div>
         <p style="color:#888;font-size:13px">If you did not create an account, you can safely ignore this email.</p>
-        <p style="color:#888;font-size:13px">This link expires in ${APP_CONFIG.auth.emailVerifyExpiryHours} hours.</p>
+        <p style="color:#888;font-size:13px">This code expires in ${APP_CONFIG.auth.emailVerifyExpiryHours} hours.</p>
       </div>
     `,
-    text: `Verify your email: ${verifyUrl}`,
+    text: `Your verification code is: ${token}`,
   });
 }
 

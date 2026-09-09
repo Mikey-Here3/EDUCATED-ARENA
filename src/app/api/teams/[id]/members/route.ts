@@ -45,12 +45,16 @@ export async function POST(
         throw new Error(`Team has reached its maximum capacity of ${team.maxMembers} members`);
       }
 
-      // Check if user is already a member
-      const existing = await tx.teamMember.findUnique({
-        where: { teamId_userId: { teamId, userId: targetUserId } },
+      // Enforce 1 team per user globally
+      const existingMembership = await tx.teamMember.findFirst({
+        where: { userId: targetUserId }
       });
 
-      if (existing) throw new Error('User is already a member of this team');
+      if (existingMembership) {
+        throw new Error(existingMembership.teamId === teamId 
+          ? 'User is already a member of this team' 
+          : 'User is already in another team. A user can only belong to one team.');
+      }
 
       return tx.teamMember.create({
         data: {

@@ -32,8 +32,14 @@ export async function POST(req: NextRequest) {
 
     const { name, description } = parsed.data;
 
-    // Check if user is already in a team (if you want to enforce one team per user, otherwise allow)
-    // Create team
+    // Check if user is already in a team
+    const existingMembership = await prisma.teamMember.findFirst({
+      where: { userId: session.id }
+    });
+
+    if (existingMembership) {
+      return NextResponse.json({ error: 'You are already in a team. A user can only belong to one team.' }, { status: 400 });
+    }
     const slug = generatePublicId('tm-' + name.toLowerCase().replace(/[^a-z0-9]/g, '-'));
 
     const team = await prisma.$transaction(async (tx) => {
