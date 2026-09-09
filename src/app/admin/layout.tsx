@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Users, UserCog, Swords, Trophy, 
   Gamepad2, Settings2, Map, ShieldAlert, Wallet, Settings, Activity
 } from 'lucide-react';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await requireRole('ADMIN');
@@ -52,9 +53,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <header className="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6">
           <h1 className="text-lg font-semibold">System Administration</h1>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-xs font-bold">
+            <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-xs font-bold" title="Admin">
               AD
             </div>
+            <LogoutButton variant="icon" />
           </div>
         </header>
         <div className="flex-1 overflow-auto p-6">

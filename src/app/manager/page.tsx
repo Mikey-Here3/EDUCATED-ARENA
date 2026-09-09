@@ -1,13 +1,45 @@
 import { Activity, Clock, ShieldCheck, CreditCard, DollarSign } from 'lucide-react';
+import { prisma } from '@/lib/db';
+import { getSession } from '@/lib/auth/session';
+import { MatchStatus, TransactionType, TransactionStatus } from '@prisma/client';
 
-export default function ManagerOverview() {
+export default async function ManagerOverview() {
+  const session = await getSession();
+  const managerId = session?.user?.id;
+
+  if (!managerId) return null;
+
+  const myAssignedCount = await prisma.match.count({
+    where: { managerId, status: { notIn: [MatchStatus.COMPLETED, MatchStatus.CANCELLED, MatchStatus.REFUNDED] } }
+  });
+
+  const pendingScheduleCount = await prisma.match.count({
+    where: { managerId, status: MatchStatus.READY }
+  });
+
+  const liveMatchesCount = await prisma.match.count({
+    where: { managerId, status: MatchStatus.LIVE }
+  });
+
+  const awaitingResultsCount = await prisma.match.count({
+    where: { managerId, status: MatchStatus.RESULT_SUBMITTED }
+  });
+
+  const pendingDeposits = await prisma.ledgerTransaction.count({
+    where: { type: TransactionType.DEPOSIT, status: TransactionStatus.PENDING }
+  });
+
+  const pendingWithdrawals = await prisma.ledgerTransaction.count({
+    where: { type: TransactionType.WITHDRAWAL_REQUEST, status: TransactionStatus.PENDING }
+  });
+
   const stats = [
-    { title: 'My Assigned Matches', value: '12', icon: ShieldCheck, color: 'text-emerald-500' },
-    { title: 'Pending Schedule', value: '5', icon: Clock, color: 'text-amber-500' },
-    { title: 'Live Matches', value: '3', icon: Activity, color: 'text-blue-500' },
-    { title: 'Awaiting Results', value: '8', icon: ShieldCheck, color: 'text-purple-500' },
-    { title: 'Pending Deposits', value: '24', icon: CreditCard, color: 'text-indigo-500' },
-    { title: 'Pending Withdrawals', value: '15', icon: DollarSign, color: 'text-rose-500' },
+    { title: 'My Assigned Matches', value: myAssignedCount.toString(), icon: ShieldCheck, color: 'text-emerald-500' },
+    { title: 'Pending Setup', value: pendingScheduleCount.toString(), icon: Clock, color: 'text-amber-500' },
+    { title: 'Live Matches', value: liveMatchesCount.toString(), icon: Activity, color: 'text-blue-500' },
+    { title: 'Awaiting Verification', value: awaitingResultsCount.toString(), icon: ShieldCheck, color: 'text-purple-500' },
+    { title: 'Pending Deposits', value: pendingDeposits.toString(), icon: CreditCard, color: 'text-indigo-500' },
+    { title: 'Pending Withdrawals', value: pendingWithdrawals.toString(), icon: DollarSign, color: 'text-rose-500' },
   ];
 
   return (

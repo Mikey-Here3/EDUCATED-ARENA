@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ReactNode } from 'react';
 import { requireRole } from '@/lib/auth/guard';
 import { LayoutDashboard, Swords, CheckSquare, HandCoins, ArrowDownToLine } from 'lucide-react';
+import { LogoutButton } from '@/components/auth/logout-button';
 
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   await requireRole('MANAGER');
@@ -40,9 +41,10 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
         <header className="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6">
           <h1 className="text-lg font-semibold">Educated Gamer Arena - Manager</h1>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center font-bold text-xs">
               M
             </div>
+            <LogoutButton variant="icon" />
           </div>
         </header>
         <div className="flex-1 overflow-auto p-6">

@@ -1,13 +1,47 @@
 import { Activity, Users, Swords, Trophy, DollarSign, Wallet, AlertCircle } from 'lucide-react';
+import { prisma } from '@/lib/db';
+import { formatCurrency } from '@/lib/utils';
+import Link from 'next/link';
+import { MatchStatus, TransactionType, TransactionStatus, UserRole } from '@prisma/client';
 
-export default function AdminOverview() {
+export default async function AdminOverview() {
+  const usersCount = await prisma.user.count({ where: { role: UserRole.USER } });
+  
+  const activeMatchesCount = await prisma.match.count({
+    where: { status: { in: [MatchStatus.READY, MatchStatus.LIVE, MatchStatus.ROOM_ASSIGNED] } }
+  });
+  
+  const completedMatchesCount = await prisma.match.count({
+    where: { status: MatchStatus.COMPLETED }
+  });
+
+  const wallets = await prisma.wallet.aggregate({
+    _sum: {
+      totalDeposits: true,
+      totalWithdrawals: true,
+      totalFees: true
+    }
+  });
+
+  const platformRevenue = Number(wallets._sum.totalFees || 0);
+  const totalDeposits = Number(wallets._sum.totalDeposits || 0);
+  const totalWithdrawals = Number(wallets._sum.totalWithdrawals || 0);
+
+  const pendingDeposits = await prisma.ledgerTransaction.count({
+    where: { type: TransactionType.DEPOSIT, status: TransactionStatus.PENDING }
+  });
+  
+  const pendingWithdrawals = await prisma.ledgerTransaction.count({
+    where: { type: TransactionType.WITHDRAWAL_REQUEST, status: TransactionStatus.PENDING }
+  });
+
   const stats = [
-    { title: 'Platform Revenue', value: 'Rs 125,000', icon: DollarSign, color: 'text-emerald-500' },
-    { title: 'Total Users', value: '1,248', icon: Users, color: 'text-blue-500' },
-    { title: 'Active Matches', value: '12', icon: Activity, color: 'text-rose-500' },
-    { title: 'Completed Matches', value: '845', icon: Swords, color: 'text-amber-500' },
-    { title: 'Total Deposits', value: 'Rs 450,000', icon: Wallet, color: 'text-indigo-500' },
-    { title: 'Total Withdrawals', value: 'Rs 280,000', icon: Wallet, color: 'text-purple-500' },
+    { title: 'Platform Revenue', value: formatCurrency(platformRevenue), icon: DollarSign, color: 'text-emerald-500' },
+    { title: 'Total Users', value: usersCount.toString(), icon: Users, color: 'text-blue-500' },
+    { title: 'Active Matches', value: activeMatchesCount.toString(), icon: Activity, color: 'text-rose-500' },
+    { title: 'Completed Matches', value: completedMatchesCount.toString(), icon: Swords, color: 'text-amber-500' },
+    { title: 'Total Deposits', value: formatCurrency(totalDeposits), icon: Wallet, color: 'text-indigo-500' },
+    { title: 'Total Withdrawals', value: formatCurrency(totalWithdrawals), icon: Wallet, color: 'text-purple-500' },
   ];
 
   return (
@@ -31,13 +65,18 @@ export default function AdminOverview() {
         ))}
       </div>
       
-      <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-6 flex items-start gap-4">
-        <AlertCircle className="w-6 h-6 text-rose-500 shrink-0 mt-1" />
-        <div>
-          <h3 className="text-lg font-bold text-rose-500 mb-1">Pending Reviews (39)</h3>
-          <p className="text-rose-400/80 text-sm">There are pending deposits (24) and withdrawals (15) awaiting manager or admin review. <a href="/admin/wallet" className="underline font-medium hover:text-rose-300">Go to Ledger</a></p>
+      {(pendingDeposits > 0 || pendingWithdrawals > 0) && (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-6 flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-rose-500 shrink-0 mt-1" />
+          <div>
+            <h3 className="text-lg font-bold text-rose-500 mb-1">Pending Reviews ({pendingDeposits + pendingWithdrawals})</h3>
+            <p className="text-rose-400/80 text-sm">
+              There are pending deposits ({pendingDeposits}) and withdrawals ({pendingWithdrawals}) awaiting manager or admin review. 
+              <Link href="/admin/wallet" className="underline font-medium hover:text-rose-300 ml-1">Go to Ledger</Link>
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

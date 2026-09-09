@@ -8,11 +8,16 @@ export function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get('ega_session')?.value;
 
   const isProtectedPath = PROTECTED_PATHS.some(pp => path.startsWith(pp));
+  const isAuthPath = ['/login', '/register', '/forgot-password', '/reset-password'].some(ap => path.startsWith(ap));
 
   if (isProtectedPath && !sessionToken) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', path);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (isAuthPath && sessionToken) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   const response = NextResponse.next();
