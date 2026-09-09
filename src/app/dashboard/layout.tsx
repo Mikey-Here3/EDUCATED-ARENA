@@ -46,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 transition-all shadow-[0_0_15px_rgba(0,255,136,0.2)]"
             >
               <Wallet className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-bold text-slate-300">Ready Cash:</span>
+              <span className="text-xs font-bold text-slate-300">Battle Cash:</span>
               <span className="text-sm font-black text-emerald-400">
                 {formatCurrency(availableBalance)}
               </span>

@@ -60,7 +60,8 @@ export async function POST(
         await reserveFunds(tx, {
           userId: session.id,
           amount: tournament.entryFee,
-          matchId: tournament.id,
+          referenceType: 'TOURNAMENT',
+          referenceId: tournament.id,
           description: `Entry fee reserved for tournament ${tournament.name}`,
         });
       }

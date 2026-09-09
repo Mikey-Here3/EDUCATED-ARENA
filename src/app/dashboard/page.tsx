@@ -154,7 +154,7 @@ export default async function DashboardOverview() {
         {/* Ready Cash */}
         <div className="p-4 sm:p-5 rounded-2xl bg-[#0e0717]/80 border border-emerald-500/20 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-            <span>READY TO PLAY</span>
+            <span>BATTLE CASH</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <Wallet className="w-4 h-4" />
             </div>

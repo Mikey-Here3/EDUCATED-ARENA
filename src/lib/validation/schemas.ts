@@ -57,7 +57,7 @@ export const challengeCreateSchema = z.object({
   mapSeriesId: z.string().min(1).optional(),
   format: z.string().min(1),
   platform: z.string().min(1),
-  entryFee: z.number().min(0),
+  entryFee: z.number().min(100),
   visibility: z.enum(['PUBLIC', 'PRIVATE', 'DIRECT']),
   expiresAt: z.string().datetime().optional(),
   rules: z.array(z.string()).optional(),

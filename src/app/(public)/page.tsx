@@ -883,7 +883,7 @@ export default function HomePage() {
 
               <div className="grid grid-cols-3 gap-3 pt-2 max-w-lg">
                 <div className="p-3.5 rounded-2xl bg-black/60 border border-[#00FF88]/20">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">💚 Ready to Play</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">💚 Battle Cash</span>
                   <span className="font-bold text-white text-xs">Available PKR</span>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-black/60 border border-[#00F0FF]/20">

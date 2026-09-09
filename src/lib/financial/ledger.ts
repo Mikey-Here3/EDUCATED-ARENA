@@ -113,6 +113,25 @@ export async function createLedgerEntry(
     throw new Error('Insufficient pending funds');
   }
 
+  // Defensively verify matchId to prevent Foreign Key constraint violation
+  let verifiedMatchId: string | undefined = undefined;
+  let finalRefType = params.referenceType;
+  let finalRefId = params.referenceId;
+
+  if (params.matchId) {
+    const matchExists = await tx.match.findUnique({
+      where: { id: params.matchId },
+      select: { id: true },
+    });
+    if (matchExists) {
+      verifiedMatchId = params.matchId;
+    } else {
+      // If match doesn't exist yet (e.g. challenge reservation), store under referenceId
+      finalRefType = finalRefType || 'CHALLENGE_OR_TEMP';
+      finalRefId = finalRefId || params.matchId;
+    }
+  }
+
   const entry = await tx.ledgerTransaction.create({
     data: {
       walletId: params.walletId,
@@ -123,9 +142,9 @@ export async function createLedgerEntry(
       balanceBefore,
       balanceAfter,
       description: params.description,
-      referenceType: params.referenceType,
-      referenceId: params.referenceId,
-      matchId: params.matchId,
+      referenceType: finalRefType,
+      referenceId: finalRefId,
+      matchId: verifiedMatchId,
       depositId: params.depositId,
       withdrawalId: params.withdrawalId,
       actorId: params.actorId,
@@ -174,10 +193,19 @@ export async function getBalance(userId: string): Promise<WalletSummary> {
 
 export async function reserveFunds(
   tx: PrismaTransaction,
-  params: { userId: string; amount: number | Decimal; matchId: string; description: string }
+  params: {
+    userId: string;
+    amount: number | Decimal;
+    matchId?: string;
+    referenceType?: string;
+    referenceId?: string;
+    description: string;
+  }
 ) {
   const wallet = await tx.wallet.findUnique({ where: { userId: params.userId } });
   if (!wallet) throw new Error('Wallet not found');
+
+  const refKey = params.matchId || params.referenceId || Date.now().toString();
 
   return createLedgerEntry(tx, {
     walletId: wallet.id,
@@ -186,16 +214,27 @@ export async function reserveFunds(
     amount: params.amount,
     description: params.description,
     matchId: params.matchId,
-    idempotencyKey: `reserve_${params.matchId}_${params.userId}`,
+    referenceType: params.referenceType || (params.matchId ? 'MATCH' : 'RESERVATION'),
+    referenceId: params.referenceId || params.matchId,
+    idempotencyKey: `reserve_${refKey}_${params.userId}`,
   });
 }
 
 export async function releaseFunds(
   tx: PrismaTransaction,
-  params: { userId: string; amount: number | Decimal; matchId: string; description: string }
+  params: {
+    userId: string;
+    amount: number | Decimal;
+    matchId?: string;
+    referenceType?: string;
+    referenceId?: string;
+    description: string;
+  }
 ) {
   const wallet = await tx.wallet.findUnique({ where: { userId: params.userId } });
   if (!wallet) throw new Error('Wallet not found');
+
+  const refKey = params.matchId || params.referenceId || Date.now().toString();
 
   return createLedgerEntry(tx, {
     walletId: wallet.id,
@@ -204,7 +243,9 @@ export async function releaseFunds(
     amount: params.amount,
     description: params.description,
     matchId: params.matchId,
-    idempotencyKey: `release_${params.matchId}_${params.userId}`,
+    referenceType: params.referenceType || (params.matchId ? 'MATCH' : 'RELEASE'),
+    referenceId: params.referenceId || params.matchId,
+    idempotencyKey: `release_${refKey}_${params.userId}`,
   });
 }
 

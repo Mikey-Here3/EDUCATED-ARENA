@@ -37,7 +37,8 @@ export async function POST(
       await releaseFunds(tx, {
         userId: challenge.creatorId,
         amount: challenge.entryFee.toNumber(),
-        matchId: challenge.id,
+        referenceType: 'CHALLENGE',
+        referenceId: challenge.id,
         description: `Funds released from cancelled challenge ${challenge.publicId}`,
       });
 

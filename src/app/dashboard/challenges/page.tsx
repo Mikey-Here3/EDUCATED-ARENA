@@ -260,6 +260,17 @@ export default function ChallengesDashboardPage() {
                         Rating: <span className="text-amber-400 font-bold">{c.creator.rating}</span> • <span className="text-white font-bold">{c.format}</span>
                         {c.platform && <span className="text-slate-500 ml-1">({c.platform})</span>}
                       </p>
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <p className="text-[10px] text-slate-400">
+                          <span className="font-bold text-slate-300">UID:</span> {c.creator.freeFireUid || 'N/A'}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          <span className="font-bold text-slate-300">IGN:</span> {c.creator.inGameName || 'N/A'}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          <span className="font-bold text-slate-300">Phone:</span> {c.creator.phone || 'N/A'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 

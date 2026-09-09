@@ -170,6 +170,7 @@ export default function WalletPage() {
         body: JSON.stringify({
           amount: parseFloat(withdrawAmount),
           method: withdrawMethod,
+          accountName: accountTitle,
           accountTitle,
           accountNumber,
         }),
@@ -228,7 +229,7 @@ export default function WalletPage() {
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#00f59b]/10 to-[#080512] border-2 border-[#00f59b]/40 p-4 sm:p-5 shadow-[0_0_25px_rgba(0,245,155,0.15)]">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-[#00f59b] uppercase tracking-wider flex items-center gap-1.5">
-              <Wallet className="w-4 h-4" /> Ready to Play
+              <Wallet className="w-4 h-4" /> Battle Cash
             </span>
             <span className="w-2.5 h-2.5 rounded-full bg-[#00f59b] animate-pulse" />
           </div>

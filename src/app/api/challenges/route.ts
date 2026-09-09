@@ -36,8 +36,11 @@ export async function GET(req: NextRequest) {
               id: true,
               username: true,
               displayName: true,
+              phone: true,
               profile: {
                 select: {
+                  freeFireUid: true,
+                  inGameName: true,
                   rating: true,
                   wins: true,
                   losses: true,
@@ -85,6 +88,9 @@ export async function GET(req: NextRequest) {
         id: c.creator.id,
         username: c.creator.username,
         displayName: c.creator.displayName || c.creator.username,
+        freeFireUid: c.creator.profile?.freeFireUid || undefined,
+        inGameName: c.creator.profile?.inGameName || undefined,
+        phone: c.creator.phone || undefined,
         rating: c.creator.profile?.rating.toNumber() || 1000,
         wins: c.creator.profile?.wins || 0,
         losses: c.creator.profile?.losses || 0,
@@ -187,15 +193,46 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Minimum 100 PKR Entry Fee Rule ───────────────────────────────────
+    if (entryFee < 100) {
+      return NextResponse.json(
+        { error: 'Minimum entry stake to post a battle ad is PKR 100.' },
+        { status: 400 }
+      );
+    }
+
+    // ── Mandatory Player Credentials (UID, Name, Phone, Username) ─────────
+    const userWithProfile = await prisma.user.findUnique({
+      where: { id: session.id },
+      include: { profile: true },
+    });
+
+    const missingFields: string[] = [];
+    if (!userWithProfile?.username) missingFields.push('Username');
+    if (!userWithProfile?.profile?.inGameName && !userWithProfile?.displayName) missingFields.push('In-Game Nickname (IGN)');
+    if (!userWithProfile?.profile?.freeFireUid) missingFields.push('Free Fire UID');
+    if (!userWithProfile?.phone) missingFields.push('Mobile Phone Number');
+
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Profile Incomplete! You must link your ${missingFields.join(', ')} in Settings before posting battle ads.`,
+          code: 'PROFILE_INCOMPLETE',
+          missingFields,
+        },
+        { status: 400 }
+      );
+    }
+
     // ── Wallet validation & atomic reservation ────────────────────────────
     const wallet = await prisma.wallet.findUnique({
       where: { userId: session.id },
     });
 
-    if (!wallet || wallet.availableBalance.toNumber() < entryFee) {
+    if (!wallet || wallet.availableBalance.toNumber() < 100 || wallet.availableBalance.toNumber() < entryFee) {
       return NextResponse.json(
         {
-          error: `Insufficient available balance. You have PKR ${wallet?.availableBalance.toNumber() || 0}, but PKR ${entryFee} is required.`,
+          error: `Insufficient balance! You must have at least PKR 100 in your wallet to post a match. Current available balance: PKR ${wallet?.availableBalance.toNumber() || 0}.`,
         },
         { status: 400 }
       );
@@ -224,11 +261,12 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Atomically reserve funds from creator's wallet
+      // Atomically reserve funds from creator's wallet (using challenge reference, not matchId)
       await reserveFunds(tx, {
         userId: session.id,
         amount: entryFee,
-        matchId: newChallenge.id,
+        referenceType: 'CHALLENGE',
+        referenceId: newChallenge.id,
         description: `Funds reserved for challenge ${publicId}`,
       });
 

@@ -46,7 +46,8 @@ async function handleCron(req: NextRequest) {
           await releaseFunds(tx, {
             userId: c.creatorId,
             amount: c.entryFee,
-            matchId: c.id,
+            referenceType: 'CHALLENGE',
+            referenceId: c.id,
             description: `Funds released from expired challenge ${c.publicId}`,
           });
           expiredCount++;

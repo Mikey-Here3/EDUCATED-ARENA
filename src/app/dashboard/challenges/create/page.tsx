@@ -133,7 +133,7 @@ export default function CreateChallengePage() {
 
   // ── Validate step 1 ──────────────────────────────────────────────────────
   const step1Valid = categoryId && format && gameModeId;
-  const step2Valid = mapId && Number(entryFee) >= 50;
+  const step2Valid = mapId && Number(entryFee) >= 100;
 
   // ── Submit ───────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
@@ -398,16 +398,16 @@ export default function CreateChallengePage() {
               </div>
               <input
                 type="number"
-                min="50"
+                min="100"
                 step="10"
                 value={entryFee}
                 onChange={(e) => setEntryFee(e.target.value)}
                 className="w-full bg-black/50 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm focus:border-violet-500 focus:outline-none transition-all"
-                placeholder="Custom amount (min PKR 50)"
+                placeholder="Custom amount (min PKR 100)"
               />
 
               {/* Stakes Preview — from the same server-side calculation */}
-              {Number(entryFee) >= 50 && (
+              {Number(entryFee) >= 100 && (
                 <div className="rounded-xl bg-gradient-to-br from-violet-900/20 to-indigo-900/20 border border-violet-800/40 p-4 space-y-2 text-xs">
                   <p className="text-[10px] text-violet-400 font-bold uppercase tracking-wider mb-3">💰 Match Financials Preview</p>
                   <div className="flex justify-between text-slate-300">

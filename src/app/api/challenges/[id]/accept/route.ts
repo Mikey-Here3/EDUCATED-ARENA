@@ -38,17 +38,18 @@ export async function POST(
         throw new Error('You cannot accept your own challenge');
       }
 
-      // Check acceptor's platform compatibility
-      const acceptorProfile = await tx.profile.findUnique({
-        where: { userId: session.id },
+      // Check acceptor's profile and credentials
+      const acceptorUser = await tx.user.findUnique({
+        where: { id: session.id },
+        include: { profile: true },
       });
 
-      if (!acceptorProfile) {
-        throw new Error('Profile not found. Please complete your profile first.');
+      if (!acceptorUser?.profile?.freeFireUid || !acceptorUser?.phone || (!acceptorUser?.profile?.inGameName && !acceptorUser?.displayName)) {
+        throw new Error('Profile incomplete! You must set your Free Fire UID, In-Game Name, and Phone Number in Settings before accepting battles.');
       }
 
-      if (challenge.platform && acceptorProfile.devicePlatform !== challenge.platform) {
-        throw new Error(`Platform mismatch: Challenge requires ${challenge.platform}, but your device is set to ${acceptorProfile.devicePlatform}.`);
+      if (challenge.platform && acceptorUser.profile.devicePlatform !== challenge.platform) {
+        throw new Error(`Platform mismatch: Challenge requires ${challenge.platform}, but your device is set to ${acceptorUser.profile.devicePlatform}.`);
       }
 
       // Check acceptor's wallet
@@ -80,7 +81,8 @@ export async function POST(
       await reserveFunds(tx, {
         userId: session.id,
         amount: challenge.entryFee.toNumber(),
-        matchId: challenge.id,
+        referenceType: 'CHALLENGE',
+        referenceId: challenge.id,
         description: `Funds reserved for match against ${challenge.creator.displayName || challenge.creator.username}`,
       });
 
