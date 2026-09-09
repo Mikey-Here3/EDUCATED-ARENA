@@ -64,10 +64,16 @@ export default function RegisterPage() {
     }
 
     try {
+      // Convert YYYY-MM-DD to ISO-8601 for Zod schema validation
+      const payload = { ...formData };
+      if (payload.dateOfBirth && payload.dateOfBirth.length === 10) {
+        payload.dateOfBirth = new Date(payload.dateOfBirth).toISOString();
+      }
+
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
