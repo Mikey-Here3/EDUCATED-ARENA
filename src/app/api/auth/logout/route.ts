@@ -1,0 +1,12 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { destroySession, getSession } from '@/lib/auth/session';
+
+export async function POST(req: NextRequest) {
+  try {
+    await destroySession();
+    return NextResponse.json({ success: true, message: 'Logged out successfully' });
+  } catch (error: any) {
+    console.error('Logout error:', error);
+    return NextResponse.json({ error: 'Failed to log out' }, { status: 500 });
+  }
+}
