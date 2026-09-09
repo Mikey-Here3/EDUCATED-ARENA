@@ -13,13 +13,13 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest) {
+async function handleCron(req: NextRequest) {
   // Authenticate cron request
   const authHeader = req.headers.get('authorization');
-  const cronSecret = APP_CONFIG.cron.secret;
+  const cronSecret = APP_CONFIG.cron.secret || process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized: Missing or invalid CRON_SECRET authorization' }, { status: 401 });
   }
 
   const results: Record<string, number> = {};
@@ -98,3 +98,12 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function GET(req: NextRequest) {
+  return handleCron(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleCron(req);
+}
+

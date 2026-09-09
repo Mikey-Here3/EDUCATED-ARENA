@@ -18,9 +18,14 @@ interface EmailProvider {
   send(payload: EmailPayload): Promise<void>;
 }
 
-// ── Console Provider (development) ──────────────────
+// ── Console Provider (development only) ─────────────
 class ConsoleEmailProvider implements EmailProvider {
   async send(payload: EmailPayload): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[EMAIL WARNING] ConsoleEmailProvider is active in production. Please configure SMTP or Resend.');
+      console.log(`📧 [PRODUCTION EMAIL] To: ${payload.to} | Subject: ${payload.subject} (Body suppressed for security)`);
+      return;
+    }
     console.log('\n═══════════════════════════════════════════');
     console.log(`📧 EMAIL (dev console)`);
     console.log(`   To:      ${payload.to}`);

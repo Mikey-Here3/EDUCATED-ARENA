@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth/session';
 import { settleMatch } from '@/lib/financial/settlement';
 import { MatchStatus, NotificationType } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
 
 export async function GET(
   req: NextRequest,
@@ -337,7 +338,6 @@ export async function POST(
       await settleMatch(matchId, session.id);
       
       // Revalidate leaderboard to reflect new ELO/Earnings
-      const { revalidatePath } = require('next/cache');
       revalidatePath('/leaderboard');
 
       return NextResponse.json({ success: true, message: 'Match settled and winnings credited to winners.' });

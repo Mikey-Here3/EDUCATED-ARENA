@@ -12,6 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/how-it-works`, changeFrequency: 'monthly' as const, priority: 0.6 },
     { url: `${baseUrl}/rules`, changeFrequency: 'monthly' as const, priority: 0.5 },
     { url: `${baseUrl}/fair-play`, changeFrequency: 'monthly' as const, priority: 0.5 },
+    { url: `${baseUrl}/contact`, changeFrequency: 'monthly' as const, priority: 0.5 },
+    { url: `${baseUrl}/social`, changeFrequency: 'monthly' as const, priority: 0.5 },
     { url: `${baseUrl}/terms`, changeFrequency: 'monthly' as const, priority: 0.3 },
     { url: `${baseUrl}/privacy`, changeFrequency: 'monthly' as const, priority: 0.3 },
     { url: `${baseUrl}/refund-policy`, changeFrequency: 'monthly' as const, priority: 0.3 },

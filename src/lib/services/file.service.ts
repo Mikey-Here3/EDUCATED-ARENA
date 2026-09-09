@@ -55,6 +55,8 @@ export async function validateFile(
   return { valid: true };
 }
 
+import { uploadImageToCloudinary, deleteImageFromCloudinary } from '@/lib/cloudinary/upload';
+
 export async function uploadFile(
   file: Buffer,
   options: UploadOptions
@@ -64,6 +66,59 @@ export async function uploadFile(
     throw new Error('Unsupported file extension for upload.');
   }
 
+  // Check if Cloudinary is configured
+  const isCloudinaryConfigured = Boolean(
+    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+
+  if (isCloudinaryConfigured || APP_CONFIG.storage.provider === 'cloudinary') {
+    try {
+      const folderMap: Record<string, string> = {
+        PROFILE_IMAGE: 'educated-gamer-arena/avatars',
+        TEAM_LOGO: 'educated-gamer-arena/teams',
+        GUILD_LOGO: 'educated-gamer-arena/guilds',
+        PAYMENT_SCREENSHOT: 'educated-gamer-arena/deposits',
+        MATCH_EVIDENCE: 'educated-gamer-arena/evidence',
+        TOURNAMENT_BANNER: 'educated-gamer-arena/tournaments',
+      };
+
+      const folder = folderMap[options.type] || 'educated-gamer-arena/uploads';
+      const result = await uploadImageToCloudinary(file, {
+        folder,
+        tags: [options.type, options.uploadedById],
+      });
+
+      const fileAssetRecord = await prisma.fileAsset.create({
+        data: {
+          fileName: result.publicId,
+          path: result.url,
+          originalName: options.originalName,
+          mimeType: options.mimeType,
+          size: result.bytes || file.length,
+          storageProvider: 'cloudinary',
+          isPublic: options.isPublic ?? (options.type !== 'MATCH_EVIDENCE' && options.type !== 'PAYMENT_SCREENSHOT'),
+          type: options.type,
+          uploadedById: options.uploadedById,
+        },
+      });
+
+      return {
+        id: fileAssetRecord.id,
+        path: fileAssetRecord.path,
+        originalName: fileAssetRecord.originalName,
+        mimeType: fileAssetRecord.mimeType,
+        size: fileAssetRecord.size,
+        storageProvider: fileAssetRecord.storageProvider,
+        url: fileAssetRecord.path,
+      };
+    } catch (err: any) {
+      console.error('Cloudinary upload error, falling back to local storage if available:', err?.message);
+    }
+  }
+
+  // Fallback to local / S3 storage
   const randomName = `${crypto.randomBytes(16).toString('hex')}${fileExt}`;
 
   const date = new Date();
@@ -85,7 +140,7 @@ export async function uploadFile(
       mimeType: options.mimeType,
       size: file.length,
       storageProvider: APP_CONFIG.storage.provider,
-      isPublic: options.isPublic ?? true,
+      isPublic: options.isPublic ?? (options.type !== 'MATCH_EVIDENCE' && options.type !== 'PAYMENT_SCREENSHOT'),
       type: options.type,
       uploadedById: options.uploadedById,
     },
@@ -103,6 +158,9 @@ export async function uploadFile(
 }
 
 export function getFileUrl(fileAsset: { path: string; storageProvider: string }): string {
+  if (fileAsset.storageProvider === 'cloudinary' || fileAsset.path.startsWith('http://') || fileAsset.path.startsWith('https://')) {
+    return fileAsset.path;
+  }
   if (fileAsset.storageProvider === 's3' && APP_CONFIG.storage.s3.endpoint) {
     return `${APP_CONFIG.storage.s3.endpoint}/${APP_CONFIG.storage.s3.bucket}/${fileAsset.path}`;
   }
@@ -116,7 +174,13 @@ export async function deleteFile(fileAssetId: string): Promise<void> {
 
   if (!fileRecord) return;
 
-  if (fileRecord.storageProvider === 'local') {
+  if (fileRecord.storageProvider === 'cloudinary') {
+    try {
+      await deleteImageFromCloudinary(fileRecord.fileName);
+    } catch (err) {
+      console.error(`Failed to delete Cloudinary asset: ${fileRecord.fileName}`, err);
+    }
+  } else if (fileRecord.storageProvider === 'local') {
     const fullPath = path.join(APP_CONFIG.storage.path, fileRecord.path);
     try {
       await fs.unlink(fullPath);
