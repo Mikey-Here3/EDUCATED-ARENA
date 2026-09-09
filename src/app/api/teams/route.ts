@@ -7,13 +7,81 @@ import { TeamRole } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+
     const teams = await prisma.team.findMany({
+      where: { isActive: true },
+      orderBy: { rating: 'desc' },
       include: {
-        leader: { select: { id: true, username: true, displayName: true } },
+        leader: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            profile: { select: { inGameName: true, freeFireUid: true } },
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                profile: { select: { inGameName: true, freeFireUid: true } },
+              },
+            },
+          },
+          orderBy: { role: 'asc' },
+        },
         _count: { select: { members: true } },
       },
     });
-    return NextResponse.json({ data: teams });
+
+    let myTeam = null;
+    if (session) {
+      const myMembership = await prisma.teamMember.findFirst({
+        where: { userId: session.id },
+        include: {
+          team: {
+            include: {
+              leader: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  profile: { select: { inGameName: true, freeFireUid: true } },
+                },
+              },
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      displayName: true,
+                      profile: { select: { inGameName: true, freeFireUid: true } },
+                    },
+                  },
+                },
+                orderBy: { role: 'asc' },
+              },
+              _count: { select: { members: true } },
+            },
+          },
+        },
+      });
+
+      if (myMembership) {
+        myTeam = myMembership.team;
+      }
+    }
+
+    return NextResponse.json({
+      data: teams,
+      myTeam,
+      currentUserId: session?.id || null,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

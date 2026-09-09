@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Users, Plus, Shield, Crown, Swords, X, CheckCircle2, Zap, Trophy } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { 
+  Users, Plus, Shield, Crown, Swords, X, CheckCircle2, 
+  AlertCircle, Loader2, Trophy, LogOut, UserPlus, Flame
+} from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Reveal, Stagger, StaggerItem } from '@/components/motion';
 
@@ -13,96 +16,253 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function TeamsDashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const [teams, setTeams] = useState<any[]>([]);
+  const [myTeam, setMyTeam] = useState<any | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const [showCreate, setShowCreate] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [teamDesc, setTeamDesc] = useState('');
 
-  const [teams, setTeams] = useState<any[]>([
-    {
-      id: 'team-1',
-      name: 'Viper Squad Esports',
-      description: 'Official Pakistani 4v4 competitive squad.',
-      rating: 2150, wins: 48, losses: 12,
-      matchesPlayed: 60, totalEarnings: 132000, memberCount: 6,
-      members: [
-        { name: 'SniperKing_PK',  role: 'LEADER',  uid: '184920491' },
-        { name: 'ShadowNinja_99', role: 'OFFICER', uid: '891048201' },
-        { name: 'Faheem_OneTap',  role: 'MEMBER',  uid: '392019481' },
-        { name: 'Khan_Destroyer', role: 'MEMBER',  uid: '749201942' },
-      ],
-    },
-  ]);
+  // Fetch real data from API
+  async function loadTeams() {
+    try {
+      const res = await fetch('/api/teams');
+      if (res.ok) {
+        const json = await res.json();
+        setTeams(json.data || []);
+        setMyTeam(json.myTeam || null);
+        setCurrentUserId(json.currentUserId || null);
+      }
+    } catch {
+      setError('Failed to load teams. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  function handleCreateTeam(e: React.FormEvent) {
+  useEffect(() => {
+    loadTeams();
+  }, []);
+
+  // Handle squad creation
+  async function handleCreateTeam(e: React.FormEvent) {
     e.preventDefault();
     if (!teamName.trim()) return;
-    setTeams(prev => [...prev, {
-      id: `team-${Date.now()}`,
-      name: teamName,
-      description: teamDesc || 'New competitive esports squad',
-      rating: 1000, wins: 0, losses: 0,
-      matchesPlayed: 0, totalEarnings: 0, memberCount: 1,
-      members: [{ name: 'You (Leader)', role: 'LEADER', uid: '—' }],
-    }]);
-    setTeamName('');
-    setTeamDesc('');
-    setShowCreate(false);
+    setActionLoading(true);
+    setError('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: teamName.trim(), description: teamDesc.trim() || undefined }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to create squad');
+        return;
+      }
+
+      setSuccessMsg(`Squad "${teamName}" created successfully!`);
+      setTeamName('');
+      setTeamDesc('');
+      setShowCreate(false);
+      await loadTeams();
+    } catch {
+      setError('Network error while creating squad.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Handle joining an existing squad
+  async function handleJoinTeam(teamId: string, teamTitle: string) {
+    if (myTeam) {
+      setError('You are already in a squad! A player can only join 1 squad.');
+      return;
+    }
+    setActionLoading(true);
+    setError('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch(`/api/teams/${teamId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to join squad');
+        return;
+      }
+
+      setSuccessMsg(`Successfully joined ${teamTitle}!`);
+      await loadTeams();
+    } catch {
+      setError('Network error while joining squad.');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Handle leaving current squad
+  async function handleLeaveTeam(teamId: string) {
+    if (!confirm('Are you sure you want to leave your squad?')) return;
+    setActionLoading(true);
+    setError('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch(`/api/teams/${teamId}/members`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to leave squad');
+        return;
+      }
+
+      setSuccessMsg('You have left the squad.');
+      await loadTeams();
+    } catch {
+      setError('Network error while leaving squad.');
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   const inputCls = 'w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/50 transition-all text-sm';
 
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto py-20 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[#00f0ff]" />
+        <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Loading arena squads...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8 max-w-4xl mx-auto pb-8">
+    <div className="space-y-8 max-w-4xl mx-auto pb-12">
 
       {/* Header */}
       <Reveal>
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#a855f7]/30 bg-[#a855f7]/10 text-[10px] font-black text-[#a855f7] mb-3 uppercase tracking-widest">
-              <Shield size={12} />Squad Manager
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#00f0ff]/30 bg-[#00f0ff]/10 text-[10px] font-black text-[#00f0ff] mb-3 uppercase tracking-widest">
+              <Shield size={12} /> Competitive Esports Squads
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white font-heading text-glow-purple">
+            <h1 className="text-3xl sm:text-4xl font-black text-white font-heading text-glow-purple uppercase tracking-tight">
               Teams &amp; Rosters
             </h1>
             <p className="text-sm text-gray-400 mt-1">
-              Build your squad (up to 30 members), manage rosters, and enter team battles.
+              Join or form a competitive squad (1 squad per player limit), manage your lineup, and compete for real PKR prizes.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="battle-btn-purple flex items-center gap-2 px-5 py-3 text-sm whitespace-nowrap"
-          >
-            <Plus size={16} />
-            Create Team
-          </button>
+
+          {!myTeam && (
+            <button
+              onClick={() => { setError(''); setSuccessMsg(''); setShowCreate(true); }}
+              className="battle-btn-purple flex items-center gap-2 px-5 py-3 text-sm whitespace-nowrap"
+            >
+              <Plus size={16} /> Create Squad
+            </button>
+          )}
         </div>
       </Reveal>
 
-      {/* Create Team Modal */}
+      {/* Notifications */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-semibold flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 font-semibold flex items-center gap-2">
+          <CheckCircle2 size={16} className="shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* Modal: Create Squad */}
       {showCreate && (
         <Reveal>
-          <div className="rounded-2xl border border-[#a855f7]/40 bg-black/80 backdrop-blur-xl p-6 shadow-[0_0_40px_rgba(168,85,247,0.15)]">
+          <div className="rounded-2xl border border-[#a855f7]/40 bg-black/90 backdrop-blur-2xl p-6 shadow-[0_0_40px_rgba(168,85,247,0.2)]">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-black text-white font-heading text-glow-purple">Create New Squad</h3>
-              <button onClick={() => setShowCreate(false)} className="text-gray-500 hover:text-white transition-colors">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#a855f7]/20 border border-[#a855f7]/40 flex items-center justify-center">
+                  <Users size={16} className="text-[#a855f7]" />
+                </div>
+                <h3 className="text-lg font-black text-white font-heading uppercase">Create New Squad</h3>
+              </div>
+              <button 
+                onClick={() => setShowCreate(false)} 
+                className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              >
                 <X size={18} />
               </button>
             </div>
+
             <form onSubmit={handleCreateTeam} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Squad Name</label>
-                <input required value={teamName} onChange={e => setTeamName(e.target.value)} className={inputCls} placeholder="e.g. Apex Predators PK" />
+                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                  Squad Name <span className="text-[#a855f7]">*</span>
+                </label>
+                <input 
+                  required 
+                  minLength={3}
+                  maxLength={30}
+                  value={teamName} 
+                  onChange={e => setTeamName(e.target.value)} 
+                  className={inputCls} 
+                  placeholder="e.g. Apex Predators PK" 
+                />
               </div>
+
               <div>
-                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Description (optional)</label>
-                <input value={teamDesc} onChange={e => setTeamDesc(e.target.value)} className={inputCls} placeholder="Your squad motto or region" />
+                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                  Description / Motto (Optional)
+                </label>
+                <input 
+                  value={teamDesc} 
+                  onChange={e => setTeamDesc(e.target.value)} 
+                  className={inputCls} 
+                  placeholder="e.g. 4v4 Clash Squad Specialists" 
+                />
               </div>
+
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-slate-400 leading-relaxed">
+                ℹ️ As founder, you will automatically become the <strong>Leader</strong>. A player can only belong to <strong>1 team</strong> at a time.
+              </div>
+
               <div className="flex gap-3 justify-end pt-2">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-5 py-2.5 rounded-xl border border-white/15 text-sm font-bold text-gray-400 hover:border-white/30 hover:text-white transition-all">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreate(false)} 
+                  className="px-5 py-2.5 rounded-xl border border-white/15 text-xs font-bold text-gray-400 hover:border-white/30 hover:text-white transition-all"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="battle-btn-purple px-6 py-2.5 text-sm flex items-center gap-2">
-                  <CheckCircle2 size={15} /> Create Squad
+                <button 
+                  type="submit" 
+                  disabled={actionLoading || !teamName.trim()}
+                  className="battle-btn-purple px-6 py-2.5 text-xs flex items-center gap-2 disabled:opacity-50"
+                >
+                  {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Found Squad
                 </button>
               </div>
             </form>
@@ -110,106 +270,214 @@ export default function TeamsDashboardPage() {
         </Reveal>
       )}
 
-      {/* Teams List */}
-      <Stagger className="space-y-6" staggerDelay={0.1}>
-        {teams.map((t) => {
-          const winRate = t.wins + t.losses > 0 ? Math.round((t.wins / (t.wins + t.losses)) * 100) : 0;
-          return (
-            <StaggerItem key={t.id}>
-              <div className="rounded-2xl border border-[#a855f7]/25 bg-black/70 backdrop-blur-sm p-6 hover:border-[#a855f7]/45 transition-all group">
+      {/* ── SECTION 1: USER'S OWN SQUAD ── */}
+      {myTeam ? (
+        <Reveal>
+          <div className="rounded-2xl border border-[#00f0ff]/40 bg-black/80 backdrop-blur-xl p-6 shadow-[0_0_35px_rgba(0,240,255,0.12)]">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#00f0ff]/15 border border-[#00f0ff]/40 text-[10px] font-black text-[#00f0ff] uppercase tracking-widest">
+                  YOUR ACTIVE SQUAD
+                </span>
+              </div>
+              
+              {/* Leave Squad Button (if not the sole leader or transfers leader) */}
+              <button
+                onClick={() => handleLeaveTeam(myTeam.id)}
+                disabled={actionLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all disabled:opacity-50"
+              >
+                <LogOut size={13} />
+                <span>Leave Squad</span>
+              </button>
+            </div>
 
-                {/* Team Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-5 border-b border-white/10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-[#a855f7]/15 border border-[#a855f7]/40 flex items-center justify-center text-[#a855f7] font-black text-lg font-heading shadow-[0_0_15px_rgba(168,85,247,0.25)]">
-                      {t.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black text-white font-heading group-hover:text-glow-purple transition-all">
-                        {t.name}
-                        <span className="text-xs font-normal text-[#a855f7] font-mono ml-2">({t.memberCount}/30)</span>
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-5 text-xs">
-                    <div className="text-center">
-                      <span className="text-gray-600 block text-[9px] uppercase font-bold mb-1">ELO</span>
-                      <span className="font-black text-white font-heading">{t.rating}</span>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-gray-600 block text-[9px] uppercase font-bold mb-1">Record</span>
-                      <span className="font-bold text-[#00ff88]">{t.wins}W / {t.losses}L</span>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-gray-600 block text-[9px] uppercase font-bold mb-1">Win%</span>
-                      <span className="font-bold text-[#00f0ff]">{winRate}%</span>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-gray-600 block text-[9px] uppercase font-bold mb-1">Earned</span>
-                      <span className="font-black text-[#ffbe1a]">{formatCurrency(t.totalEarnings)}</span>
-                    </div>
-                  </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-[#00f0ff]/10 border border-[#00f0ff]/40 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                  <Shield size={28} className="text-[#00f0ff]" />
                 </div>
-
-                {/* Roster */}
                 <div>
-                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Users size={12} className="text-[#a855f7]" /> Active Roster
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {t.members.map((m: any, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-xs group/member"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-[#a855f7]/20 border border-[#a855f7]/40 flex items-center justify-center text-[#a855f7] font-black text-[10px]">
-                            {m.name.slice(0, 1).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-white text-xs">{m.name}</p>
-                            <p className="text-[10px] text-gray-600 font-mono">UID: {m.uid}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${ROLE_COLORS[m.role] || ROLE_COLORS.MEMBER} uppercase tracking-wider`}>
-                            {m.role === 'LEADER' ? '👑' : m.role === 'OFFICER' ? '⚡' : ''} {m.role}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Add Member Slot */}
-                    <button className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-white/15 text-gray-600 hover:border-[#a855f7]/40 hover:text-[#a855f7] transition-all text-xs">
-                      <Plus size={14} /> Invite Player
-                    </button>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-3 mt-5 pt-4 border-t border-white/10">
-                  <button className="battle-btn-purple flex items-center gap-2 px-4 py-2.5 text-xs">
-                    <Swords size={13} /> Enter Team Battle
-                  </button>
-                  <button className="px-4 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-gray-400 hover:border-white/25 hover:text-white transition-all flex items-center gap-2">
-                    <Trophy size={13} /> Tournament Register
-                  </button>
+                  <h2 className="text-xl font-black text-white font-heading tracking-wide text-glow-cyan">{myTeam.name}</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{myTeam.description || 'Competitive Free Fire Squad'}</p>
+                  <p className="text-[11px] text-[#ffbe1a] font-bold flex items-center gap-1 mt-1">
+                    <Crown size={12} /> Leader: {myTeam.leader?.displayName || myTeam.leader?.username}
+                  </p>
                 </div>
               </div>
-            </StaggerItem>
-          );
-        })}
-      </Stagger>
 
-      {teams.length === 0 && (
-        <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
-          <Users size={48} className="mx-auto mb-4 text-gray-700" />
-          <p className="text-sm font-bold text-gray-500">No teams yet</p>
-          <p className="text-xs text-gray-600 mt-1">Create your first squad to start team battles</p>
-        </div>
+              <div className="flex items-center gap-5 text-xs bg-white/5 border border-white/10 rounded-xl p-3">
+                <div className="text-center px-2">
+                  <span className="text-gray-500 block text-[9px] uppercase font-bold">Rating</span>
+                  <span className="font-black text-white font-heading text-sm">{Number(myTeam.rating) || 1000}</span>
+                </div>
+                <div className="text-center px-2 border-l border-white/10">
+                  <span className="text-gray-500 block text-[9px] uppercase font-bold">W / L</span>
+                  <span className="font-bold text-[#00ff88] text-sm">{myTeam.wins || 0}W / {myTeam.losses || 0}L</span>
+                </div>
+                <div className="text-center px-2 border-l border-white/10">
+                  <span className="text-gray-500 block text-[9px] uppercase font-bold">Earnings</span>
+                  <span className="font-bold text-[#ffbe1a] text-sm">{formatCurrency(myTeam.totalEarnings || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Roster List */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users size={14} className="text-[#00f0ff]" /> Squad Roster ({myTeam.members?.length || 0} / {myTeam.maxMembers || 30})
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {myTeam.members?.map((m: any) => {
+                  const isLeader = m.role === 'LEADER';
+                  const isYou = m.user?.id === currentUserId;
+                  const ign = m.user?.profile?.inGameName || m.user?.displayName || m.user?.username;
+                  const uid = m.user?.profile?.freeFireUid;
+
+                  return (
+                    <div 
+                      key={m.id}
+                      className="p-3.5 rounded-xl border border-white/10 bg-white/5 flex items-center justify-between hover:border-white/20 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-bold text-xs text-white">
+                          {isLeader ? <Crown size={15} className="text-[#ffbe1a]" /> : <Users size={14} className="text-slate-400" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-white">{ign}</span>
+                            {isYou && <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold">YOU</span>}
+                          </div>
+                          <span className="text-[10px] text-slate-400 block font-mono">UID: {uid || 'Unset'}</span>
+                        </div>
+                      </div>
+
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-black border ${ROLE_COLORS[m.role] || ROLE_COLORS.MEMBER}`}>
+                        {m.role}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      ) : (
+        /* Empty State: User has no squad */
+        <Reveal>
+          <div className="rounded-2xl border border-dashed border-white/15 bg-black/40 p-8 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-[#00f0ff]/10 border border-[#00f0ff]/30 flex items-center justify-center mx-auto text-[#00f0ff]">
+              <Users size={32} />
+            </div>
+            <div className="max-w-md mx-auto">
+              <h3 className="text-lg font-black text-white uppercase tracking-wide">You are not in a Squad</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Join an active arena squad below to participate in 4v4 team battles and tournaments, or found your own squad as team leader.
+              </p>
+            </div>
+            <button
+              onClick={() => { setError(''); setSuccessMsg(''); setShowCreate(true); }}
+              className="battle-btn-purple inline-flex items-center gap-2 px-6 py-3 text-xs uppercase tracking-wider"
+            >
+              <Plus size={16} /> Create Your Squad
+            </button>
+          </div>
+        </Reveal>
       )}
+
+      {/* ── SECTION 2: ALL ARENA SQUADS ── */}
+      <div className="space-y-4 pt-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+            <Flame size={16} className="text-[#ffbe1a]" /> All Registered Arena Squads ({teams.length})
+          </h2>
+          <span className="text-xs text-slate-500 font-bold">1 Team Limit per Player</span>
+        </div>
+
+        {teams.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-black/40 p-10 text-center text-slate-400 text-xs">
+            <p className="font-semibold text-white mb-1">No squads found in the Arena.</p>
+            <p>Click "Create Squad" above to register the first official team!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {teams.map((t) => {
+              const isMyTeam = myTeam?.id === t.id;
+              const memberCount = t.members?.length ?? t._count?.members ?? 0;
+              const maxCap = t.maxMembers || 30;
+              const isFull = memberCount >= maxCap;
+
+              return (
+                <div 
+                  key={t.id}
+                  className={`rounded-2xl border p-5 transition-all ${
+                    isMyTeam 
+                      ? 'border-[#00f0ff]/40 bg-[#00f0ff]/5 shadow-[0_0_20px_rgba(0,240,255,0.08)]' 
+                      : 'border-white/10 bg-black/60 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#00f0ff]">
+                        <Shield size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-white text-sm">{t.name}</h4>
+                          {isMyTeam && (
+                            <span className="px-1.5 py-0.2 rounded bg-[#00f0ff]/20 text-[#00f0ff] text-[9px] font-black">
+                              YOURS
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Leader: {t.leader?.displayName || t.leader?.username}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-xs font-black text-white px-2 py-1 rounded bg-white/5 border border-white/10 font-mono">
+                      {Number(t.rating) || 1000} ELO
+                    </span>
+                  </div>
+
+                  {t.description && (
+                    <p className="text-xs text-slate-400 line-clamp-2 mb-4">
+                      {t.description}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-3 border-t border-white/10 text-xs">
+                    <span className="text-slate-500 text-[11px] flex items-center gap-1">
+                      <Users size={12} /> {memberCount} / {maxCap} members
+                    </span>
+
+                    {!myTeam && !isFull && (
+                      <button
+                        onClick={() => handleJoinTeam(t.id, t.name)}
+                        disabled={actionLoading}
+                        className="px-3.5 py-1.5 rounded-lg border border-[#00f0ff]/30 bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <UserPlus size={13} /> Join Squad
+                      </button>
+                    )}
+
+                    {isFull && !isMyTeam && (
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                        Squad Full
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
