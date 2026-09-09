@@ -93,6 +93,8 @@ export async function GET(req: NextRequest) {
       creatorTeam: c.creatorTeam || undefined,
     }));
 
+    const session = await getSession();
+
     return NextResponse.json({
       data: formatted,
       total,
@@ -100,6 +102,7 @@ export async function GET(req: NextRequest) {
       limit,
       totalPages: Math.ceil(total / limit),
       hasMore: page * limit < total,
+      currentUserId: session?.id || null,
     });
   } catch (error: any) {
     console.error('Fetch challenges error:', error);
