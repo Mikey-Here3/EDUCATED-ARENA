@@ -202,7 +202,7 @@ export default function PublicMatchesPage() {
   }
 
   return (
-    <div className="min-h-screen py-6 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-24 pb-32 space-y-8 bg-[#03040B] text-white">
+    <div className="min-h-screen py-6 px-2 xs:px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-20 sm:pt-24 pb-32 space-y-6 sm:space-y-8 bg-[#03040B] text-white">
       {/* ─── 1. BATTLE ARENA HEADER & COMPACT STATUS STRIP ─── */}
       <Reveal>
         <div className="relative rounded-3xl overflow-hidden border-2 border-[#00F0FF]/30 bg-gradient-to-r from-[#060816] via-[#090D24] to-[#060816] p-6 sm:p-8 shadow-[0_0_40px_rgba(0,240,255,0.12)]">
@@ -280,7 +280,7 @@ export default function PublicMatchesPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
               {FORMAT_OPTIONS.map((f) => {
                 const Icon = f.icon;
                 const isSelected = selectedFormat === f.id;
@@ -341,7 +341,7 @@ export default function PublicMatchesPage() {
           </div>
 
           {/* ─── 3. CATEGORY & RULE FILTERS (MULTI-TIERED HIERARCHY) ─── */}
-          <div className="space-y-3 p-4 sm:p-5 rounded-3xl bg-[#060816]/90 border border-white/10 shadow-lg">
+          <div className="space-y-3 p-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#060816]/90 border border-white/10 shadow-lg">
             {/* Row 1: GAME TYPE FILTERS */}
             <div className="space-y-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
@@ -422,17 +422,16 @@ export default function PublicMatchesPage() {
               </div>
             </div>
 
-            {/* Search, Sort & Active Filter Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-white/5 pt-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 border-t border-white/5 pt-3">
               {/* Search Bar */}
-              <div className="relative flex-1 max-w-md">
+              <div className="relative flex-1 sm:max-w-md">
                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Search by ID (EG-...), player, mode, or map..."
+                  placeholder="Search by ID, player, mode or map..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-white/10 bg-black/60 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-[#00F0FF] transition-colors"
+                  className="w-full pl-9 pr-4 py-2.5 sm:py-2 rounded-xl border border-white/10 bg-black/60 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-[#00F0FF] transition-colors"
                 />
                 {searchQuery && (
                   <button
@@ -446,12 +445,12 @@ export default function PublicMatchesPage() {
 
               {/* Sort & Reset Actions */}
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 px-3 py-1.5 rounded-xl text-xs">
-                  <ArrowUpDown size={13} className="text-[#00F0FF]" />
+                <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 px-3 py-2 rounded-xl text-xs flex-1 sm:flex-none">
+                  <ArrowUpDown size={13} className="text-[#00F0FF] shrink-0" />
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-transparent text-white text-xs focus:outline-none cursor-pointer"
+                    className="bg-transparent text-white text-xs focus:outline-none cursor-pointer w-full sm:w-auto"
                   >
                     <option value="NEWEST" className="bg-[#080C1E] text-white">Newest First</option>
                     <option value="LOW_ENTRY" className="bg-[#080C1E] text-white">Lowest Entry</option>
@@ -462,7 +461,7 @@ export default function PublicMatchesPage() {
                 {hasActiveFilters && (
                   <button
                     onClick={clearAllFilters}
-                    className="px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 flex items-center gap-1.5 transition-colors"
+                    className="px-3 py-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 flex items-center gap-1.5 transition-colors shrink-0"
                   >
                     <RotateCcw size={12} />
                     <span>Reset</span>

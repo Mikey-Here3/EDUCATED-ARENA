@@ -104,7 +104,7 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
 
 /* ─── Main Page ─── */
 export default function PublicTournamentsPage() {
-  const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'LIVE'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'LIVE' | 'CUPS'>('ALL');
   const [loading, setLoading] = useState(true);
   const [tournaments, setTournaments] = useState<typeof SAMPLE_TOURNAMENTS>([]);
   const [mounted, setMounted] = useState(false);
@@ -138,6 +138,7 @@ export default function PublicTournamentsPage() {
   const filtered = tournaments.filter((t) => {
     if (filter === 'OPEN') return t.status === 'REGISTRATION_OPEN';
     if (filter === 'LIVE') return t.status === 'IN_PROGRESS';
+    if (filter === 'CUPS') return t.format.toLowerCase().includes('4v4') || t.format.toLowerCase().includes('squad');
     return true;
   });
 
@@ -154,10 +155,10 @@ export default function PublicTournamentsPage() {
         <div className="absolute top-2/3 left-1/2 -translate-x-1/2 w-64 h-64 bg-[#ffbe1a]/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6">
 
         {/* ─── Hero Banner ─── */}
-        <div className="relative rounded-3xl overflow-hidden border border-[#00f0ff]/25 bg-gradient-to-br from-[#0a1628] via-[#060d20] to-[#080d24] p-6 sm:p-10 mb-8 shadow-[0_0_60px_rgba(0,240,255,0.12)] transition-all duration-700">
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-[#00f0ff]/25 bg-gradient-to-br from-[#0a1628] via-[#060d20] to-[#080d24] p-5 sm:p-10 mb-6 sm:mb-8 shadow-[0_0_60px_rgba(0,240,255,0.12)] transition-all duration-700">
           {/* Decorative glows */}
           <div className="absolute -top-16 -right-16 w-80 h-80 bg-[#00f0ff]/10 rounded-full blur-[80px] pointer-events-none" />
           <div className="absolute -bottom-8 -left-8  w-48 h-48 bg-[#a855f7]/10 rounded-full blur-[60px] pointer-events-none" />
@@ -192,22 +193,23 @@ export default function PublicTournamentsPage() {
         </div>
 
         {/* ─── Filter Tabs ─── */}
-        <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 mb-6 sm:mb-8 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { id: 'ALL',  label: 'All Tournaments', icon: Star,    count: tournaments.length },
-            { id: 'OPEN', label: 'Registration Open', icon: Clock, count: OPEN_COUNT },
-            { id: 'LIVE', label: '🔴 Live Now',      icon: Flame,  count: LIVE_COUNT },
+            { id: 'ALL',  label: 'All Cups',           icon: Star,    count: tournaments.length },
+            { id: 'CUPS', label: '🏆 Cup Series',      icon: Trophy,  count: tournaments.filter(t => t.format.toLowerCase().includes('4v4')).length },
+            { id: 'OPEN', label: 'Registration Open',  icon: Clock,   count: OPEN_COUNT },
+            { id: 'LIVE', label: '🔴 Live Now',        icon: Flame,   count: LIVE_COUNT },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap border ${
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap border ${
                 filter === tab.id
                   ? 'bg-[#00f0ff]/15 text-[#00f0ff] border-[#00f0ff]/50 shadow-[0_0_15px_rgba(0,240,255,0.25)]'
                   : 'bg-white/5 text-gray-500 border-white/10 hover:text-white hover:border-white/25 hover:bg-white/8'
               }`}
             >
-              <tab.icon size={12} />
+              <tab.icon size={11} />
               {tab.label}
               <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${filter === tab.id ? 'bg-[#00f0ff]/30 text-[#00f0ff]' : 'bg-white/10 text-gray-500'}`}>
                 {tab.count}
@@ -242,7 +244,7 @@ export default function PublicTournamentsPage() {
               return (
                 <div
                   key={t.id}
-                  className={`rounded-2xl border ${cfg.border} bg-black/70 backdrop-blur-sm p-6 flex flex-col justify-between transition-all duration-500 ${cfg.glow} group ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+                  className={`rounded-2xl border ${cfg.border} bg-black/70 backdrop-blur-sm p-4 sm:p-6 flex flex-col justify-between transition-all duration-500 ${cfg.glow} group ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
                   style={{ transitionDelay: `${idx * 100}ms` }}
                 >
                   {/* Card Header */}
