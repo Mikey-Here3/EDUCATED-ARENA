@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
-import { APP_CONFIG } from '@/config';
+import { APP_CONFIG, validateProductionConfig } from '@/config';
 import { SessionUser } from '@/types';
 import { ROLE_PERMISSIONS } from '@/lib/permissions';
 
@@ -48,6 +48,7 @@ export async function createSession(userId: string): Promise<string> {
 }
 
 export async function getSession(): Promise<SessionUser | null> {
+  validateProductionConfig();
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 

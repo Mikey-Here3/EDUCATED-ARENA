@@ -49,20 +49,20 @@ export const APP_CONFIG = {
 };
 
 // ── Production environment validation ───────────────
-if (process.env.NODE_ENV === 'production') {
+// Called at runtime (inside request handlers) — NOT at build time.
+// This allows Vercel to build the project without env vars in the build environment.
+export function validateProductionConfig(): void {
+  if (process.env.NODE_ENV !== 'production') return;
   const missing: string[] = [];
   if (!process.env.DATABASE_URL) missing.push('DATABASE_URL');
   if (!process.env.AUTH_SECRET) missing.push('AUTH_SECRET');
   if (!process.env.APP_URL) missing.push('APP_URL');
-
   if (missing.length > 0) {
     throw new Error(
       `[FATAL] Missing required production environment variables: ${missing.join(', ')}. ` +
-      `The application cannot start without these.`
+      `Set them in Vercel Dashboard → Project Settings → Environment Variables.`
     );
   }
-
-  // Warn if AUTH_SECRET looks weak
   if (process.env.AUTH_SECRET && process.env.AUTH_SECRET.length < 32) {
     console.warn('[Security Warning] AUTH_SECRET should be at least 32 characters for production.');
   }
