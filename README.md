@@ -2,7 +2,7 @@
 
 Educated Gamer Arena (EGA) — Pakistan's premier competitive Free Fire digital esports battleground.
 
-## Overview
+## Overview 
 - **Combat Modes**: 1v1 One-Tap Aim, 2v2 Duo Clash, 4v4 Clash Squad, Guild vs Guild (GvG), Craftland, and Battle Royale.
 - **Financial Integrity**: Double-entry ledger system with automated escrow holds, referee verification, and verified Easypaisa / JazzCash transactions (PKR).
 - **Esports Atmosphere**: High-impact Cyber Neon HUD theme, real-time live ticker, dynamic categories, and ELO rating leaderboards.
