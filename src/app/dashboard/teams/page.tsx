@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Reveal, Stagger, StaggerItem } from '@/components/motion';
+import { BattleConfirmModal } from '@/components/ui/battle-confirm-modal';
 
 const ROLE_COLORS: Record<string, string> = {
   LEADER: 'bg-[#ffbe1a]/15 text-[#ffbe1a] border-[#ffbe1a]/40',
@@ -115,28 +116,33 @@ export default function TeamsDashboardPage() {
     }
   }
 
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+
   // Handle leaving current squad
-  async function handleLeaveTeam(teamId: string) {
-    if (!confirm('Are you sure you want to leave your squad?')) return;
+  async function executeLeaveTeam() {
+    if (!myTeam) return;
     setActionLoading(true);
     setError('');
     setSuccessMsg('');
 
     try {
-      const res = await fetch(`/api/teams/${teamId}/members`, {
+      const res = await fetch(`/api/teams/${myTeam.id}/members`, {
         method: 'DELETE',
       });
 
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Failed to leave squad');
+        setLeaveModalOpen(false);
         return;
       }
 
-      setSuccessMsg('You have left the squad.');
+      setSuccessMsg('You have successfully left the squad.');
+      setLeaveModalOpen(false);
       await loadTeams();
     } catch {
       setError('Network error while leaving squad.');
+      setLeaveModalOpen(false);
     } finally {
       setActionLoading(false);
     }
@@ -281,11 +287,11 @@ export default function TeamsDashboardPage() {
                 </span>
               </div>
               
-              {/* Leave Squad Button (if not the sole leader or transfers leader) */}
+              {/* Leave Squad Button */}
               <button
-                onClick={() => handleLeaveTeam(myTeam.id)}
+                onClick={() => setLeaveModalOpen(true)}
                 disabled={actionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all disabled:opacity-50 active:scale-95"
               >
                 <LogOut size={13} />
                 <span>Leave Squad</span>
@@ -478,6 +484,27 @@ export default function TeamsDashboardPage() {
         )}
       </div>
 
+      {/* ── LEAVE SQUAD CYBER DIALOG MODAL ── */}
+      <BattleConfirmModal
+        isOpen={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        onConfirm={executeLeaveTeam}
+        title="LEAVE SQUAD"
+        subtitle={myTeam ? `Are you sure you want to leave ${myTeam.name}?` : undefined}
+        confirmText="Yes, Leave Squad"
+        cancelText="Stay with Squad"
+        variant="danger"
+        loading={actionLoading}
+      >
+        <div className="p-4 rounded-2xl bg-black/60 border border-rose-500/20 text-xs space-y-2">
+          <p className="text-slate-300">
+            You will forfeit your roster spot in <strong>{myTeam?.name}</strong> and any upcoming team tournaments registered with this squad.
+          </p>
+          <p className="text-slate-500 text-[11px]">
+            You can join or create another squad immediately after leaving.
+          </p>
+        </div>
+      </BattleConfirmModal>
     </div>
   );
 }

@@ -14,10 +14,12 @@ export default function MatchCommandCenter() {
   const [roomPassword, setRoomPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const handleSchedule = async () => {
     try {
       setLoading(true);
+      setFeedback(null);
       const res = await fetch(`/api/matches/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,12 +32,14 @@ export default function MatchCommandCenter() {
         }),
       });
       if (res.ok) {
-        alert('Schedule saved');
+        setFeedback({ type: 'success', message: 'Match schedule saved successfully.' });
       } else {
-        alert('Failed to save schedule');
+        const data = await res.json().catch(() => ({}));
+        setFeedback({ type: 'error', message: data.error || 'Failed to save schedule' });
       }
     } catch (e) {
       console.error(e);
+      setFeedback({ type: 'error', message: 'Network error saving schedule' });
     } finally {
       setLoading(false);
     }
@@ -44,6 +48,7 @@ export default function MatchCommandCenter() {
   const handleRoom = async () => {
     try {
       setLoading(true);
+      setFeedback(null);
       const res = await fetch(`/api/matches/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,12 +59,14 @@ export default function MatchCommandCenter() {
         }),
       });
       if (res.ok) {
-        alert('Room saved');
+        setFeedback({ type: 'success', message: 'Room credentials published to players.' });
       } else {
-        alert('Failed to save room');
+        const data = await res.json().catch(() => ({}));
+        setFeedback({ type: 'error', message: data.error || 'Failed to save room credentials' });
       }
     } catch (e) {
       console.error(e);
+      setFeedback({ type: 'error', message: 'Network error saving room credentials' });
     } finally {
       setLoading(false);
     }
@@ -73,6 +80,17 @@ export default function MatchCommandCenter() {
           <p className="text-gray-400">Managing Match #{id}</p>
         </div>
       </div>
+
+      {feedback && (
+        <div className={`p-4 rounded-xl text-xs font-bold border flex items-center justify-between ${
+          feedback.type === 'success' 
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+            : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+        }`}>
+          <span>{feedback.message}</span>
+          <button onClick={() => setFeedback(null)} className="text-xs hover:underline ml-2">Dismiss</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Scheduling & Details */}

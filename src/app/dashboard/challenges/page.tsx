@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Reveal } from '@/components/motion';
+import { BattleConfirmModal } from '@/components/ui/battle-confirm-modal';
 
 export default function ChallengesDashboardPage() {
   const router = useRouter();
@@ -46,10 +47,12 @@ export default function ChallengesDashboardPage() {
     loadChallenges();
   }, []);
 
-  async function handleCancel(challenge: any) {
-    if (!confirm(`Cancel challenge ${challenge.publicId}? Your stake of PKR ${challenge.entryFee} will be instantly refunded to your wallet.`)) {
-      return;
-    }
+  const [acceptTarget, setAcceptTarget] = useState<any | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+
+  async function executeCancel() {
+    if (!cancelTarget) return;
+    const challenge = cancelTarget;
     setCancellingId(challenge.id);
     setError('');
     setSuccessMsg('');
@@ -59,6 +62,7 @@ export default function ChallengesDashboardPage() {
       const json = await res.json();
       if (res.ok) {
         setSuccessMsg(`Challenge ${challenge.publicId} cancelled. PKR ${challenge.entryFee} refunded to your available balance.`);
+        setCancelTarget(null);
         loadChallenges();
       } else {
         setError(json.error || 'Failed to cancel challenge');
@@ -70,10 +74,9 @@ export default function ChallengesDashboardPage() {
     }
   }
 
-  async function handleAccept(challenge: any) {
-    if (!confirm(`Accept battle against ${challenge.creator.displayName}?\n\nEntry Stake: PKR ${challenge.entryFee}\nWinner Prize: PKR ${challenge.prizePool}\n\nYour stake will be locked in escrow and the private match room will be created.`)) {
-      return;
-    }
+  async function executeAccept() {
+    if (!acceptTarget) return;
+    const challenge = acceptTarget;
     setAcceptingId(challenge.id);
     setError('');
     setSuccessMsg('');
@@ -82,12 +85,15 @@ export default function ChallengesDashboardPage() {
       const res = await fetch(`/api/challenges/${challenge.id}/accept`, { method: 'POST' });
       const json = await res.json();
       if (res.ok) {
+        setAcceptTarget(null);
         router.push(`/dashboard/matches/${json.matchId}`);
       } else {
         setError(json.error || 'Failed to accept challenge');
+        setAcceptTarget(null);
       }
     } catch {
       setError('Network error while accepting challenge');
+      setAcceptTarget(null);
     } finally {
       setAcceptingId(null);
     }
@@ -295,7 +301,7 @@ export default function ChallengesDashboardPage() {
                     /* Creator sees CANCEL & REFUND button */
                     <Button
                       variant="secondary"
-                      onClick={() => handleCancel(c)}
+                      onClick={() => setCancelTarget(c)}
                       disabled={cancellingId === c.id}
                       className="w-full h-11 bg-red-950/40 hover:bg-red-900/60 text-red-300 hover:text-white border border-red-500/30 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(239,68,68,0.15)]"
                     >
@@ -314,7 +320,7 @@ export default function ChallengesDashboardPage() {
                   ) : (
                     /* Opponent sees ACCEPT FIGHT button (NO CANCEL BUTTON) */
                     <Button
-                      onClick={() => handleAccept(c)}
+                      onClick={() => setAcceptTarget(c)}
                       disabled={acceptingId === c.id}
                       className="w-full h-11 battle-btn-red text-white font-black text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(255,32,64,0.3)]"
                     >
@@ -337,6 +343,85 @@ export default function ChallengesDashboardPage() {
           })}
         </div>
       )}
+
+      {/* ── 1. ACCEPT FIGHT CYBER DIALOG MODAL ── */}
+      <BattleConfirmModal
+        isOpen={Boolean(acceptTarget)}
+        onClose={() => setAcceptTarget(null)}
+        onConfirm={executeAccept}
+        title="ACCEPT BATTLE FIGHT"
+        subtitle={acceptTarget ? `Ready to enter the arena against ${acceptTarget.creator.displayName}?` : undefined}
+        confirmText="Lock Stake & Enter"
+        cancelText="Decline"
+        variant="battle"
+        loading={Boolean(acceptingId)}
+      >
+        {acceptTarget && (
+          <div className="space-y-3 pt-2">
+            <div className="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Game Mode</span>
+                <span className="font-bold text-white">{acceptTarget.gameMode?.name || 'Standard'} ({acceptTarget.format})</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Map</span>
+                <span className="font-bold text-cyan-300">{acceptTarget.map?.name || 'Bermuda'}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Your Entry Stake</span>
+                <span className="font-extrabold text-white">{formatCurrency(acceptTarget.entryFee)}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-white/10 pt-2.5">
+                <span className="font-bold text-amber-400 uppercase text-[10px]">🏆 Winner Prize Pool</span>
+                <span className="font-black text-amber-400 text-sm">{formatCurrency(acceptTarget.prizePool)}</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-[11px] text-red-300 flex items-start gap-2">
+              <Shield className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <span>
+                Your stake of <strong>{formatCurrency(acceptTarget.entryFee)}</strong> will be locked in secure escrow. The match room will be automatically prepared.
+              </span>
+            </div>
+          </div>
+        )}
+      </BattleConfirmModal>
+
+      {/* ── 2. CANCEL CHALLENGE CYBER DIALOG MODAL ── */}
+      <BattleConfirmModal
+        isOpen={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={executeCancel}
+        title="CANCEL BATTLE STAKE"
+        subtitle={cancelTarget ? `Are you sure you want to cancel fight ${cancelTarget.publicId}?` : undefined}
+        confirmText="Yes, Cancel & Refund"
+        cancelText="Keep Fight Active"
+        variant="danger"
+        loading={Boolean(cancellingId)}
+      >
+        {cancelTarget && (
+          <div className="space-y-3 pt-2">
+            <div className="p-4 rounded-2xl bg-black/60 border border-rose-500/20 text-xs space-y-2">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Challenge ID</span>
+                <span className="font-mono font-bold text-white">{cancelTarget.publicId}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Locked Stake</span>
+                <span className="font-bold text-emerald-400">{formatCurrency(cancelTarget.entryFee)}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-white/10 pt-2 text-slate-300">
+                <span>Refund Destination</span>
+                <span className="font-bold text-white">Your Available Wallet</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400">
+              Once cancelled, this challenge will be removed from the public marketplace and your reserved funds will be credited back to your wallet balance immediately.
+            </p>
+          </div>
+        )}
+      </BattleConfirmModal>
     </div>
   );
 }

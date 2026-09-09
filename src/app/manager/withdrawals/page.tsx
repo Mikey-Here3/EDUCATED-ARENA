@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { Check, X, Search, DollarSign } from 'lucide-react';
+import { BattleConfirmModal } from '@/components/ui/battle-confirm-modal';
 
 export default function WithdrawalsReview() {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionTarget, setActionTarget] = useState<{ id: string; action: 'APPROVE' | 'REJECT' | 'MARK_PAID'; amount: number; user: string; account: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchWithdrawals = async () => {
     try {
@@ -13,7 +17,7 @@ export default function WithdrawalsReview() {
       const res = await fetch('/api/manager/withdrawals');
       const data = await res.json();
       if (data.data) {
-        setWithdrawals(data.data.filter((w: any) => w.status === 'PENDING' || w.status === 'APPROVED' || w.status === 'PROCESSING'));
+        setWithdrawals(data.data);
       }
     } catch (e) {
       console.error(e);
@@ -26,8 +30,11 @@ export default function WithdrawalsReview() {
     fetchWithdrawals();
   }, []);
 
-  const handleAction = async (id: string, action: 'APPROVE' | 'REJECT' | 'MARK_PAID') => {
-    if (!confirm(`Are you sure you want to ${action} this withdrawal?`)) return;
+  const executeAction = async () => {
+    if (!actionTarget) return;
+    const { id, action } = actionTarget;
+    setActionLoading(true);
+    setFeedbackMsg(null);
     
     try {
       const res = await fetch(`/api/manager/withdrawals/${id}/review`, {
@@ -36,12 +43,20 @@ export default function WithdrawalsReview() {
         body: JSON.stringify({ action, notes: '' }),
       });
       if (res.ok) {
+        setFeedbackMsg({ type: 'success', text: `Withdrawal successfully updated (${action}).` });
+        setActionTarget(null);
         fetchWithdrawals();
       } else {
-        alert('Failed to process withdrawal');
+        const data = await res.json().catch(() => ({}));
+        setFeedbackMsg({ type: 'error', text: data.error || 'Failed to process withdrawal' });
+        setActionTarget(null);
       }
     } catch (e) {
       console.error(e);
+      setFeedbackMsg({ type: 'error', text: 'Network error processing withdrawal' });
+      setActionTarget(null);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -100,14 +115,26 @@ export default function WithdrawalsReview() {
                         {withdrawal.status === 'PENDING' && (
                           <>
                             <button 
-                              onClick={() => handleAction(withdrawal.id, 'APPROVE')}
+                              onClick={() => setActionTarget({
+                                id: withdrawal.id,
+                                action: 'APPROVE',
+                                amount: withdrawal.amount,
+                                user: withdrawal.user?.displayName || 'User',
+                                account: withdrawal.accountNumber || withdrawal.accountName || ''
+                              })}
                               className="p-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded transition-colors" 
                               title="Approve"
                             >
                               <Check className="w-4 h-4" />
                             </button>
                             <button 
-                              onClick={() => handleAction(withdrawal.id, 'REJECT')}
+                              onClick={() => setActionTarget({
+                                id: withdrawal.id,
+                                action: 'REJECT',
+                                amount: withdrawal.amount,
+                                user: withdrawal.user?.displayName || 'User',
+                                account: withdrawal.accountNumber || withdrawal.accountName || ''
+                              })}
                               className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded transition-colors" 
                               title="Reject"
                             >
@@ -117,7 +144,13 @@ export default function WithdrawalsReview() {
                         )}
                         {(withdrawal.status === 'APPROVED' || withdrawal.status === 'PROCESSING') && (
                           <button 
-                            onClick={() => handleAction(withdrawal.id, 'MARK_PAID')}
+                            onClick={() => setActionTarget({
+                              id: withdrawal.id,
+                              action: 'MARK_PAID',
+                              amount: withdrawal.amount,
+                              user: withdrawal.user?.displayName || 'User',
+                              account: withdrawal.accountNumber || withdrawal.accountName || ''
+                            })}
                             className="p-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded transition-colors" 
                             title="Mark as Paid"
                           >
@@ -133,6 +166,61 @@ export default function WithdrawalsReview() {
           </table>
         </div>
       </div>
+
+      {/* Action Dialog Modal */}
+      <BattleConfirmModal
+        isOpen={Boolean(actionTarget)}
+        onClose={() => setActionTarget(null)}
+        onConfirm={executeAction}
+        title={
+          actionTarget?.action === 'APPROVE' ? 'APPROVE WITHDRAWAL' :
+          actionTarget?.action === 'MARK_PAID' ? 'MARK WITHDRAWAL AS PAID' :
+          'REJECT WITHDRAWAL'
+        }
+        subtitle={actionTarget ? `Confirm ${actionTarget.action.replace('_', ' ').toLowerCase()} for PKR ${actionTarget.amount} requested by ${actionTarget.user}?` : undefined}
+        confirmText={
+          actionTarget?.action === 'APPROVE' ? 'Approve Cashout' :
+          actionTarget?.action === 'MARK_PAID' ? 'Confirm Payment Sent' :
+          'Reject Cashout'
+        }
+        cancelText="Back"
+        variant={actionTarget?.action === 'REJECT' ? 'danger' : 'info'}
+        loading={actionLoading}
+      >
+        {actionTarget && (
+          <div className="p-4 rounded-xl bg-black/60 border border-white/10 text-xs space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Player</span>
+              <span className="text-white font-bold">{actionTarget.user}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Amount</span>
+              <span className="text-amber-400 font-black">PKR {actionTarget.amount}</span>
+            </div>
+            {actionTarget.account && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Account</span>
+                <span className="text-white font-mono">{actionTarget.account}</span>
+              </div>
+            )}
+            {actionTarget.action === 'APPROVE' && (
+              <p className="text-[11px] text-emerald-300 pt-2 border-t border-white/10">
+                ✓ Approving moves this withdrawal to processing queue for payment dispatch.
+              </p>
+            )}
+            {actionTarget.action === 'MARK_PAID' && (
+              <p className="text-[11px] text-cyan-300 pt-2 border-t border-white/10">
+                ✓ Marking as paid will complete the ledger withdrawal transaction.
+              </p>
+            )}
+            {actionTarget.action === 'REJECT' && (
+              <p className="text-[11px] text-rose-300 pt-2 border-t border-white/10">
+                ⚠ Rejecting will refund the reserved withdrawal amount back to user's wallet.
+              </p>
+            )}
+          </div>
+        )}
+      </BattleConfirmModal>
     </div>
   );
 }

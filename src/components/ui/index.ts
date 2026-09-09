@@ -23,3 +23,4 @@ export * from './countdown';
 export * from './dropdown';
 export * from './tooltip';
 export * from './logo';
+export * from './battle-confirm-modal';
