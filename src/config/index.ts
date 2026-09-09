@@ -17,7 +17,7 @@ export const APP_CONFIG = {
   email: {
     provider: process.env.EMAIL_PROVIDER || 'console',
     from: process.env.EMAIL_FROM || 'noreply@educatedgamer.com',
-    apiKey: process.env.EMAIL_API_KEY,
+    apiKey: process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY,
     smtp: {
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587', 10),

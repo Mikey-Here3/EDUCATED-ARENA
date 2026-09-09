@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { CinematicBackground } from '@/components/cinematic';
 import { MobileBattleNav } from '@/components/navigation/mobile-battle-nav';
 import { ArrowLeft, Swords, Trophy, BarChart3, ShieldCheck } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 
 export default function AuthLayout({
   children,
@@ -17,19 +18,7 @@ export default function AuthLayout({
       <header className="relative z-30 py-4 px-4 sm:px-6 border-b border-white/10 bg-[#060713]/85 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00f0ff] via-[#7928ca] to-[#ff0055] flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.5)] group-hover:scale-105 transition-transform">
-              <span className="text-white font-black text-xs tracking-wider font-heading">EG</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-heading font-black text-base sm:text-lg text-white text-glow">
-                EDUCATED GAMER
-              </span>
-              <span className="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/40 text-[9px] font-black text-cyan-400 tracking-widest uppercase">
-                ARENA
-              </span>
-            </div>
-          </Link>
+          <Logo size="md" href="/" />
 
           {/* Quick Route Links on Desktop */}
           <nav className="hidden md:flex items-center gap-5 text-xs font-bold uppercase tracking-wider text-slate-300">

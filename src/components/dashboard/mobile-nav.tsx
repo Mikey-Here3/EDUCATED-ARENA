@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import { Sidebar } from './sidebar';
 import { MobileBattleNav } from '@/components/navigation/mobile-battle-nav';
+import { Logo } from '@/components/ui/logo';
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -38,15 +39,7 @@ export function MobileNav() {
       {/* Top Mobile Header Bar */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-[#00f0ff]/15 bg-[#050614]/97 backdrop-blur-xl sticky top-0 z-40">
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00f0ff] via-[#0088ff] to-[#00ff88] p-0.5 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-            <span className="w-full h-full rounded-[9px] bg-[#050614] flex items-center justify-center font-black text-[10px] text-[#00f0ff]">EG</span>
-          </div>
-          <span className="font-heading font-black tracking-wider text-sm text-white" style={{ textShadow: '0 0 12px rgba(0,240,255,0.4)' }}>ARENA</span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/30 text-[9px] font-bold text-[#00ff88]">
-            <Flame className="w-3 h-3 text-[#ffbe1a] animate-pulse" /> PRO
-          </span>
-        </Link>
+        <Logo size="sm" href="/dashboard" />
 
         {/* Right: Wallet + Menu */}
         <div className="flex items-center gap-2">

@@ -8,6 +8,7 @@ import {
   Gamepad2, Settings2, Map, ShieldAlert, Wallet, Settings, Activity
 } from 'lucide-react';
 import { LogoutButton } from '@/components/auth/logout-button';
+import { Logo } from '@/components/ui/logo';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await requireRole('ADMIN');
@@ -31,8 +32,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <div className="flex min-h-screen bg-gray-950 text-white">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 border-r border-gray-800 hidden md:flex flex-col">
-        <div className="p-6 border-b border-gray-800">
-          <h2 className="text-xl font-black text-rose-500 uppercase tracking-wider">Admin Ops</h2>
+        <div className="p-5 border-b border-gray-800 space-y-2">
+          <Logo size="sm" href="/admin" />
+          <span className="inline-block px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-[9px] font-black text-rose-400 tracking-widest uppercase">
+            ADMIN OPERATIONS
+          </span>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (

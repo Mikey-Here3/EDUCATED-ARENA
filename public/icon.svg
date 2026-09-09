@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="ega-cyan-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="50%" stop-color="#00a8ff" />
+      <stop offset="100%" stop-color="#7928ca" />
+    </linearGradient>
+
+    <linearGradient id="ega-fire-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff0055" />
+      <stop offset="50%" stop-color="#ff4500" />
+      <stop offset="100%" stop-color="#ffbe1a" />
+    </linearGradient>
+
+    <linearGradient id="ega-shield-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#120c24" />
+      <stop offset="100%" stop-color="#05030a" />
+    </linearGradient>
+
+    <linearGradient id="ega-gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffbe1a" />
+      <stop offset="100%" stop-color="#d48806" />
+    </linearGradient>
+
+    <linearGradient id="ega-metallic" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#80d0ff" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Neon Glow Filter -->
+    <filter id="ega-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur1" />
+      <feGaussianBlur stdDeviation="16" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="ega-soft-glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Ambient Glow -->
+  <circle cx="256" cy="240" r="160" fill="#00f0ff" opacity="0.12" filter="url(#ega-glow)" />
+  <circle cx="256" cy="270" r="130" fill="#ff0055" opacity="0.10" filter="url(#ega-glow)" />
+
+  <!-- Outer Esports Wings / Crest Backdrop -->
+  <path d="M70 120 L150 170 L130 260 L60 210 Z" fill="url(#ega-cyan-grad)" opacity="0.4" />
+  <path d="M442 120 L362 170 L382 260 L452 210 Z" fill="url(#ega-cyan-grad)" opacity="0.4" />
+  
+  <path d="M90 190 L165 230 L150 310 L80 270 Z" fill="url(#ega-fire-grad)" opacity="0.3" />
+  <path d="M422 190 L347 230 L362 310 L432 270 Z" fill="url(#ega-fire-grad)" opacity="0.3" />
+
+  <!-- Main Cyber Shield Base Outer Border -->
+  <polygon points="256,40 430,120 395,355 256,470 117,355 82,120" 
+           fill="none" 
+           stroke="url(#ega-cyan-grad)" 
+           stroke-width="5" 
+           filter="url(#ega-soft-glow)" />
+
+  <!-- Secondary Accent Border -->
+  <polygon points="256,58 412,130 380,345 256,450 132,345 100,130" 
+           fill="url(#ega-shield-bg)" 
+           stroke="#2a1b4e" 
+           stroke-width="3" />
+
+  <!-- High-Tech Inner Grid & Angular Armor Plates -->
+  <!-- Top Left Plate -->
+  <polygon points="250,75 125,140 150,320 250,400" 
+           fill="#0c071a" 
+           stroke="#00f0ff" 
+           stroke-opacity="0.2" 
+           stroke-width="1.5" />
+           
+  <!-- Top Right Plate -->
+  <polygon points="262,75 387,140 362,320 262,400" 
+           fill="#100922" 
+           stroke="#ff0055" 
+           stroke-opacity="0.2" 
+           stroke-width="1.5" />
+
+  <!-- Crossed Energy Blades / Free Fire Katana Silhouette Behind Monogram -->
+  <g opacity="0.85">
+    <!-- Blade 1: Top-Left to Bottom-Right -->
+    <path d="M120 80 L380 390 L395 385 L145 70 Z" fill="url(#ega-cyan-grad)" filter="url(#ega-soft-glow)" />
+    <!-- Blade 2: Top-Right to Bottom-Left -->
+    <path d="M392 80 L132 390 L117 385 L367 70 Z" fill="url(#ega-fire-grad)" filter="url(#ega-soft-glow)" />
+  </g>
+
+  <!-- Center Hexagonal Core Shield -->
+  <polygon points="256,120 350,175 350,295 256,360 162,295 162,175" 
+           fill="#07040f" 
+           stroke="url(#ega-cyan-grad)" 
+           stroke-width="3.5" 
+           filter="url(#ega-soft-glow)" />
+
+  <!-- Futuristic "EG" Stylized Monogram / Predator Visor -->
+  <!-- Letter "E" Shape (Left) -->
+  <path d="M 188 185 
+           L 242 185 
+           L 242 203 
+           L 208 203 
+           L 208 227 
+           L 236 227 
+           L 236 245 
+           L 208 245 
+           L 208 272 
+           L 244 272 
+           L 244 290 
+           L 188 290 Z" 
+        fill="url(#ega-cyan-grad)" 
+        filter="url(#ega-soft-glow)" />
+
+  <!-- Letter "G" Shape (Right) -->
+  <path d="M 324 195 
+           L 324 185 
+           L 268 185 
+           L 268 290 
+           L 324 290 
+           L 324 236 
+           L 296 236 
+           L 296 254 
+           L 306 254 
+           L 306 272 
+           L 286 272 
+           L 286 203 
+           L 324 203 Z" 
+        fill="url(#ega-metallic)" 
+        filter="url(#ega-soft-glow)" />
+
+  <!-- Center Energy Core Spark / Crosshair Target -->
+  <circle cx="256" cy="237.5" r="5" fill="#00ff88" filter="url(#ega-soft-glow)" />
+  <line x1="256" y1="218" x2="256" y2="257" stroke="#00ff88" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+  <line x1="237" y1="237.5" x2="275" y2="237.5" stroke="#00ff88" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+
+  <!-- Top Crown / Rank Diamond Crest -->
+  <polygon points="256,50 274,75 256,92 238,75" fill="url(#ega-gold-grad)" filter="url(#ega-soft-glow)" />
+  <polygon points="256,58 268,75 256,86 244,75" fill="#ffffff" opacity="0.8" />
+
+  <!-- Bottom Cyber Star Accent -->
+  <polygon points="256,415 264,435 285,438 269,451 274,472 256,460 238,472 243,451 227,438 248,435" 
+           fill="url(#ega-gold-grad)" 
+           filter="url(#ega-soft-glow)" />
+</svg>

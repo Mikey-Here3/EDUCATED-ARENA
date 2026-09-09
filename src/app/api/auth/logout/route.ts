@@ -1,12 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { destroySession, getSession } from '@/lib/auth/session';
+import { destroySession } from '@/lib/auth/session';
 
 export async function POST(req: NextRequest) {
   try {
     await destroySession();
-    return NextResponse.json({ success: true, message: 'Logged out successfully' });
   } catch (error: any) {
-    console.error('Logout error:', error);
-    return NextResponse.json({ error: 'Failed to log out' }, { status: 500 });
+    console.error('Logout session destroy error:', error);
   }
+
+  const response = NextResponse.json({ success: true, message: 'Logged out successfully' });
+  response.cookies.set('ega_session', '', {
+    path: '/',
+    maxAge: 0,
+    expires: new Date(0),
+    httpOnly: true,
+    sameSite: 'lax',
+  });
+  return response;
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    await destroySession();
+  } catch (error: any) {
+    console.error('Logout session destroy error:', error);
+  }
+
+  const loginUrl = new URL('/login', req.url);
+  const response = NextResponse.redirect(loginUrl);
+  response.cookies.set('ega_session', '', {
+    path: '/',
+    maxAge: 0,
+    expires: new Date(0),
+    httpOnly: true,
+    sameSite: 'lax',
+  });
+  return response;
+}
+

@@ -46,6 +46,11 @@ export const metadata: Metadata = {
     description:
       'Pakistan\'s premier competitive Free Fire platform.',
   },
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
   robots: {
     index: true,
     follow: true,

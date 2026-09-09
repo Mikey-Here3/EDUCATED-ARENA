@@ -3,10 +3,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Swords, Target, Wallet, Users, 
-  Shield, Trophy, Bell, Settings, LogOut 
+  Shield, Trophy, Bell, Settings 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { LogoutButton } from '@/components/auth/logout-button';
+import { Logo } from '@/components/ui/logo';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -25,10 +26,8 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-64 border-r border-violet-900/30 bg-black/50 backdrop-blur-xl sticky top-0 h-screen">
-      <div className="p-6">
-        <h2 className="text-xl font-black italic tracking-wider text-violet-400 drop-shadow-[0_0_10px_rgba(139,92,246,0.5)]">
-          EGA DASHBOARD
-        </h2>
+      <div className="p-5 border-b border-violet-900/20">
+        <Logo size="sm" href="/dashboard" />
       </div>
 
       <div className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
@@ -55,20 +54,8 @@ export function Sidebar() {
         })}
       </div>
 
-      <div className="p-4 border-t border-violet-900/30">
-        <div className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-zinc-900/50 border border-zinc-800">
-          <div className="w-10 h-10 rounded-full bg-violet-900 flex items-center justify-center text-violet-200 font-bold border-2 border-violet-500/50">
-            AG
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-200">AshanGaming</p>
-            <p className="text-xs text-violet-400 font-medium">PKR 4,500.00</p>
-          </div>
-        </div>
-        <Button variant="ghost" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-400/10">
-          <LogOut className="w-5 h-5 mr-3" />
-          Logout
-        </Button>
+      <div className="p-4 border-t border-violet-900/30 space-y-2">
+        <LogoutButton variant="sidebar" />
       </div>
     </aside>
   );

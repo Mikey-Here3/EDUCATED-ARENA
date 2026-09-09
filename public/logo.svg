@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" fill="none" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="ega-cyan-brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="50%" stop-color="#00a8ff" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+
+    <linearGradient id="ega-fire-brand" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff0055" />
+      <stop offset="50%" stop-color="#ff4500" />
+      <stop offset="100%" stop-color="#ffbe1a" />
+    </linearGradient>
+
+    <linearGradient id="ega-text-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="60%" stop-color="#e2e8f0" />
+      <stop offset="100%" stop-color="#94a3b8" />
+    </linearGradient>
+
+    <linearGradient id="ega-badge-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(0, 240, 255, 0.2)" />
+      <stop offset="100%" stop-color="rgba(168, 85, 247, 0.15)" />
+    </linearGradient>
+
+    <!-- Filter for Glow Effect -->
+    <filter id="ega-glow-full" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── 1. ICON EMBLEM (LEFT: 220px wide centered at x=120, y=120) ── -->
+  <g transform="translate(10, 10) scale(0.43)">
+    <!-- Background Glow -->
+    <circle cx="256" cy="240" r="160" fill="#00f0ff" opacity="0.15" filter="url(#ega-glow-full)" />
+    <circle cx="256" cy="270" r="130" fill="#ff0055" opacity="0.12" filter="url(#ega-glow-full)" />
+
+    <!-- Wings / Crest -->
+    <path d="M70 120 L150 170 L130 260 L60 210 Z" fill="url(#ega-cyan-brand)" opacity="0.4" />
+    <path d="M442 120 L362 170 L382 260 L452 210 Z" fill="url(#ega-cyan-brand)" opacity="0.4" />
+    <path d="M90 190 L165 230 L150 310 L80 270 Z" fill="url(#ega-fire-brand)" opacity="0.3" />
+    <path d="M422 190 L347 230 L362 310 L432 270 Z" fill="url(#ega-fire-brand)" opacity="0.3" />
+
+    <!-- Main Cyber Shield -->
+    <polygon points="256,40 430,120 395,355 256,470 117,355 82,120" 
+             fill="none" 
+             stroke="url(#ega-cyan-brand)" 
+             stroke-width="7" 
+             filter="url(#ega-glow-full)" />
+
+    <polygon points="256,58 412,130 380,345 256,450 132,345 100,130" 
+             fill="#07040f" 
+             stroke="#2a1b4e" 
+             stroke-width="4" />
+
+    <!-- Armor plates -->
+    <polygon points="250,75 125,140 150,320 250,400" fill="#0c071a" stroke="#00f0ff" stroke-opacity="0.25" stroke-width="2" />
+    <polygon points="262,75 387,140 362,320 262,400" fill="#100922" stroke="#ff0055" stroke-opacity="0.25" stroke-width="2" />
+
+    <!-- Dual Blades -->
+    <path d="M120 80 L380 390 L395 385 L145 70 Z" fill="url(#ega-cyan-brand)" filter="url(#ega-glow-full)" />
+    <path d="M392 80 L132 390 L117 385 L367 70 Z" fill="url(#ega-fire-brand)" filter="url(#ega-glow-full)" />
+
+    <!-- Hexagonal Core -->
+    <polygon points="256,120 350,175 350,295 256,360 162,295 162,175" 
+             fill="#05020c" 
+             stroke="url(#ega-cyan-brand)" 
+             stroke-width="5" 
+             filter="url(#ega-glow-full)" />
+
+    <!-- Monogram EG -->
+    <path d="M 188 185 L 242 185 L 242 203 L 208 203 L 208 227 L 236 227 L 236 245 L 208 245 L 208 272 L 244 272 L 244 290 L 188 290 Z" 
+          fill="url(#ega-cyan-brand)" 
+          filter="url(#ega-glow-full)" />
+
+    <path d="M 324 195 L 324 185 L 268 185 L 268 290 L 324 290 L 324 236 L 296 236 L 296 254 L 306 254 L 306 272 L 286 272 L 286 203 L 324 203 Z" 
+          fill="#ffffff" 
+          filter="url(#ega-glow-full)" />
+
+    <!-- Core Target -->
+    <circle cx="256" cy="237.5" r="7" fill="#00ff88" filter="url(#ega-glow-full)" />
+    <!-- Top Crown -->
+    <polygon points="256,50 274,75 256,92 238,75" fill="#ffbe1a" filter="url(#ega-glow-full)" />
+  </g>
+
+  <!-- ── 2. BRAND TYPOGRAPHY (RIGHT: x=240 onwards) ── -->
+  <g transform="translate(240, 20)">
+    <!-- Sub-badge: PRO FREE FIRE ESPORTS -->
+    <g transform="translate(0, 15)">
+      <rect x="0" y="0" width="220" height="26" rx="6" fill="url(#ega-badge-bg)" stroke="#00f0ff" stroke-width="1" stroke-opacity="0.4" />
+      <circle cx="14" cy="13" r="3.5" fill="#00ff88" filter="url(#ega-glow-full)" />
+      <text x="26" y="17.5" font-family="'Inter', 'Montserrat', system-ui, sans-serif" font-size="11" font-weight="900" letter-spacing="2.5" fill="#00f0ff">
+        FREE FIRE ARENA • PK
+      </text>
+    </g>
+
+    <!-- Main Wordmark: EDUCATED GAMER -->
+    <g transform="translate(0, 88)">
+      <!-- Subtle Shadow text -->
+      <text x="2" y="2" font-family="'Montserrat', 'Arial Black', sans-serif" font-size="54" font-weight="900" letter-spacing="1.5" fill="#000000" opacity="0.6">
+        EDUCATED GAMER
+      </text>
+      <!-- Gradient Text -->
+      <text x="0" y="0" font-family="'Montserrat', 'Arial Black', sans-serif" font-size="54" font-weight="900" letter-spacing="1.5" fill="url(#ega-text-metal)" filter="url(#ega-glow-full)">
+        EDUCATED GAMER
+      </text>
+    </g>
+
+    <!-- Bottom Row: ARENA Badge + Tagline -->
+    <g transform="translate(0, 125)">
+      <!-- ARENA Crimson Neon Badge -->
+      <rect x="0" y="0" width="160" height="42" rx="8" fill="url(#ega-fire-brand)" filter="url(#ega-glow-full)" />
+      <text x="80" y="29" font-family="'Montserrat', 'Arial Black', sans-serif" font-size="24" font-weight="900" letter-spacing="6" fill="#ffffff" text-anchor="middle">
+        ARENA
+      </text>
+
+      <!-- Competitor tagline -->
+      <text x="180" y="28" font-family="'Inter', system-ui, sans-serif" font-size="13" font-weight="700" letter-spacing="3" fill="#94a3b8">
+        PKR PRIZE POOLS • INSTANT ESCROW
+      </text>
+
+      <!-- Sleek Accent Lines -->
+      <line x1="570" y1="23" x2="640" y2="23" stroke="#00f0ff" stroke-width="2" opacity="0.6" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>

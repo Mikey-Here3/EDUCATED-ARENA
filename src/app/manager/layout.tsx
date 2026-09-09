@@ -5,6 +5,7 @@ import { ReactNode } from 'react';
 import { requireRole } from '@/lib/auth/guard';
 import { LayoutDashboard, Swords, CheckSquare, HandCoins, ArrowDownToLine } from 'lucide-react';
 import { LogoutButton } from '@/components/auth/logout-button';
+import { Logo } from '@/components/ui/logo';
 
 export default async function ManagerLayout({ children }: { children: ReactNode }) {
   await requireRole('MANAGER');
@@ -13,8 +14,11 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
     <div className="flex min-h-screen bg-gray-950 text-white">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 border-r border-gray-800 hidden md:flex flex-col">
-        <div className="p-6 border-b border-gray-800">
-          <h2 className="text-xl font-black text-amber-500 uppercase tracking-wider">Manager Ops</h2>
+        <div className="p-5 border-b border-gray-800 space-y-2">
+          <Logo size="sm" href="/manager" />
+          <span className="inline-block px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-[9px] font-black text-amber-400 tracking-widest uppercase">
+            MANAGER OPERATIONS
+          </span>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <Link href="/manager" className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">

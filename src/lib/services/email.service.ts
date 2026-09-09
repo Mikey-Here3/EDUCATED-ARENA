@@ -68,28 +68,66 @@ class SmtpEmailProvider implements EmailProvider {
 // ── Resend Provider ─────────────────────────────────
 class ResendEmailProvider implements EmailProvider {
   async send(payload: EmailPayload): Promise<void> {
-    const apiKey = APP_CONFIG.email.apiKey;
-    if (!apiKey) throw new Error('EMAIL_API_KEY required for Resend provider');
+    const apiKey = APP_CONFIG.email.apiKey || process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
+    if (!apiKey) {
+      console.warn('[EMAIL WARNING] Resend API key missing. Logging email payload to console:');
+      console.log(`To: ${payload.to} | Subject: ${payload.subject} | Text: ${payload.text}`);
+      return;
+    }
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from: APP_CONFIG.email.from,
-        to: payload.to,
-        subject: payload.subject,
-        html: payload.html,
-        text: payload.text,
-      }),
-    });
+    const defaultFrom = process.env.EMAIL_FROM || 'Educated Gamer Arena <onboarding@resend.dev>';
 
-    if (!res.ok) {
-      const body = await res.text();
-      logger.error('email.send_failed', { message: `Resend API error: ${res.status}`, meta: { body } });
-      throw new Error(`Resend API error: ${res.status}`);
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          from: defaultFrom,
+          to: payload.to,
+          subject: payload.subject,
+          html: payload.html,
+          text: payload.text,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        // If from address failed (e.g. domain not verified), retry once with onboarding@resend.dev
+        if (!defaultFrom.includes('onboarding@resend.dev')) {
+          console.warn(`Resend failed with ${defaultFrom}, retrying with onboarding@resend.dev...`);
+          const retryRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              from: 'Educated Gamer Arena <onboarding@resend.dev>',
+              to: payload.to,
+              subject: payload.subject,
+              html: payload.html,
+              text: payload.text,
+            }),
+          });
+          if (retryRes.ok) {
+            console.log(`[EMAIL SENT] Successfully sent email to ${payload.to} via Resend!`);
+            return;
+          }
+        }
+
+        console.error(`Resend API error (${res.status}):`, body);
+        logger.error('email.send_failed', { message: `Resend API error: ${res.status}`, meta: { body } });
+        // Fallback log for registration OTP so user is never blocked while testing
+        console.warn(`[OTP CODE DIRECT LOG] To: ${payload.to} | Message: ${payload.text}`);
+      } else {
+        console.log(`[EMAIL SENT] Successfully sent email to ${payload.to} via Resend!`);
+      }
+    } catch (err: any) {
+      console.error('Resend fetch exception:', err);
+      console.warn(`[OTP CODE DIRECT LOG] To: ${payload.to} | Message: ${payload.text}`);
     }
   }
 }

@@ -22,3 +22,4 @@ export * from './status-badge';
 export * from './countdown';
 export * from './dropdown';
 export * from './tooltip';
+export * from './logo';

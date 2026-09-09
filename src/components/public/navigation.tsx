@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import { LiveIndicator } from '@/components/motion';
+import { Logo } from '@/components/ui/logo';
 
 const publicNavItems = [
   { label: 'Live Battles', href: '/matches',      icon: Swords,    color: '#00f0ff', primary: true },
@@ -80,19 +81,7 @@ export function PublicHeader() {
         <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00f0ff] via-[#0088ff] to-[#a855f7] p-0.5 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.4)] group-hover:scale-105 transition-transform">
-              <span className="w-full h-full rounded-[9px] bg-[#050614] flex items-center justify-center text-[#00f0ff] font-black text-xs tracking-wider font-heading">EG</span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-heading font-black text-base sm:text-lg tracking-wider text-white whitespace-nowrap" style={{ textShadow: '0 0 20px rgba(0,240,255,0.4)' }}>
-                EDUCATED GAMER
-              </span>
-              <span className="px-1.5 py-0.5 rounded bg-[#00f0ff]/15 border border-[#00f0ff]/40 text-[8px] font-black text-[#00f0ff] tracking-widest uppercase hidden md:inline">
-                ARENA
-              </span>
-            </div>
-          </Link>
+          <Logo size="md" href="/" />
 
           {/* Desktop Nav: Shows 4 core on lg, all 6 on 2xl */}
           <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5">
