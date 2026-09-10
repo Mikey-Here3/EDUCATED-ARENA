@@ -134,21 +134,24 @@ class ResendEmailProvider implements EmailProvider {
 
 // ── Factory ─────────────────────────────────────────
 function getProvider(): EmailProvider {
-  switch (APP_CONFIG.email.provider) {
-    case 'smtp':
-      return new SmtpEmailProvider();
-    case 'resend':
-      return new ResendEmailProvider();
-    case 'console':
-    default:
-      return new ConsoleEmailProvider();
-  }
-}
+  const hasResend = Boolean(
+    APP_CONFIG.email.apiKey ||
+    process.env.RESEND_API_KEY ||
+    process.env.EMAIL_API_KEY
+  );
 
-const provider = getProvider();
+  if (APP_CONFIG.email.provider === 'smtp') {
+    return new SmtpEmailProvider();
+  }
+  if (APP_CONFIG.email.provider === 'resend' || hasResend) {
+    return new ResendEmailProvider();
+  }
+  return new ConsoleEmailProvider();
+}
 
 // ── Public API ──────────────────────────────────────
 export async function sendEmail(payload: EmailPayload): Promise<void> {
+  const provider = getProvider();
   await provider.send(payload);
 }
 

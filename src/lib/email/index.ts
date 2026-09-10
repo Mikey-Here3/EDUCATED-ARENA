@@ -20,19 +20,33 @@ export async function sendVerificationEmail(email: string, token: string, userna
   const verificationUrl = `${APP_CONFIG.app.url}/verify-email?token=${token}`;
   return sendViaService({
     to: email,
-    subject: 'Verify your Educated Gamer Arena account',
+    subject: `[Educated Gamer Arena] Your Verification Code: ${token}`,
     html: `
-      <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px;background:#0f0f0f;color:#fff;border-radius:12px">
-        <h1 style="color:#DC2626;font-size:24px;margin-bottom:16px">Welcome to Educated Gamer Arena${username ? `, ${username}` : ''}!</h1>
-        <p>Please click the link below to verify your email address:</p>
-        <a href="${verificationUrl}" style="display:inline-block;margin:24px 0;padding:12px 32px;background:#DC2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold">
-          Verify Email
-        </a>
-        <p style="color:#888;font-size:13px">If you did not create an account, you can safely ignore this email.</p>
-        <p style="color:#888;font-size:13px">This link expires in 24 hours.</p>
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:28px;background:#0c0914;color:#fff;border-radius:16px;border:1px solid #2a223e">
+        <div style="text-align:center;margin-bottom:20px">
+          <h1 style="color:#00f0ff;font-size:24px;margin:0;letter-spacing:1px;text-transform:uppercase">Educated Gamer Arena</h1>
+          <p style="color:#a855f7;font-size:13px;font-weight:bold;margin-top:4px">BATTLE GROUND VERIFICATION</p>
+        </div>
+        <p style="font-size:15px;color:#e2e8f0;text-align:center">Welcome ${username ? `<strong>${username}</strong>` : 'Gamer'}! Enter this 6-digit activation code to verify your account:</p>
+        
+        <div style="margin:24px auto;padding:18px;background:#140c24;border:2px dashed #00f0ff;border-radius:14px;text-align:center;max-width:280px">
+          <span style="font-family:monospace;font-size:38px;font-weight:900;letter-spacing:10px;color:#00ff88;display:block">
+            ${token}
+          </span>
+        </div>
+
+        <p style="font-size:13px;color:#94a3b8;text-align:center">Or click the button below to verify automatically in your browser:</p>
+        <div style="text-align:center;margin:20px 0">
+          <a href="${verificationUrl}" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#00f0ff,#7928ca);color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:14px">
+            VERIFY MY ACCOUNT
+          </a>
+        </div>
+        <div style="border-top:1px solid #221a36;margin-top:24px;padding-top:16px;text-align:center">
+          <p style="color:#64748b;font-size:12px;margin:0">If you did not create this account, please disregard this email. This code expires in 24 hours.</p>
+        </div>
       </div>
     `,
-    text: `Welcome to Educated Gamer Arena${username ? `, ${username}` : ''}!\nPlease verify your email by visiting: ${verificationUrl}`,
+    text: `Your Educated Gamer Arena 6-digit verification code is: ${token}\nOr verify your account directly at: ${verificationUrl}`,
   });
 }
 

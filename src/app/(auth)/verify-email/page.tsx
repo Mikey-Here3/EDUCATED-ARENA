@@ -48,6 +48,41 @@ function VerifyEmailContent() {
     }
   }
 
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  async function handleResend() {
+    if (!email || countdown > 0) return;
+    setResending(true);
+    setResendMsg('');
+    try {
+      const res = await fetch('/api/auth/resend-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendMsg(data.message || 'Verification code resent! Check your inbox.');
+        setCountdown(60);
+      } else {
+        setResendMsg(data.error || 'Failed to resend code');
+      }
+    } catch {
+      setResendMsg('Network error requesting resend');
+    } finally {
+      setResending(false);
+    }
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     handleVerify(otp);
@@ -117,15 +152,30 @@ function VerifyEmailContent() {
             <button
               type="submit"
               disabled={otp.length !== 6}
-              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#a855f7] to-[#7e22ce] text-white hover:from-[#9333ea] hover:to-[#6b21a8] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase"
+              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#a855f7] to-[#7e22ce] text-white hover:from-[#9333ea] hover:to-[#6b21a8] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase cursor-pointer"
             >
               Verify Account
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/10 text-xs text-slate-500">
-            <p className="mb-2">Didn't receive the code?</p>
-            <p>Check your spam/junk folder. In local development, the code is logged in the server console.</p>
+          <div className="mt-8 pt-6 border-t border-white/10 text-xs text-slate-400 space-y-3">
+            <p>Didn't receive the code?</p>
+            {email ? (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending || countdown > 0}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-[#00f0ff] font-bold text-xs transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {resending ? 'Sending...' : countdown > 0 ? `Resend Code in ${countdown}s` : 'Resend Verification Code'}
+              </button>
+            ) : null}
+            {resendMsg && (
+              <p className="text-emerald-400 font-semibold">{resendMsg}</p>
+            )}
+            <p className="text-[11px] text-slate-500">
+              Check your spam/junk folder. Codes are sent via Educated Gamer security servers.
+            </p>
           </div>
         </div>
       )}

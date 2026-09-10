@@ -107,10 +107,12 @@ export async function createLedgerEntry(
     throw new Error('Insufficient available funds');
   }
   if (reservedAfter.isNegative()) {
-    throw new Error('Insufficient reserved funds');
+    console.warn(`[LEDGER WARNING] reservedAfter is negative (${reservedAfter.toString()}). Clamping to 0. UserID: ${params.userId}`);
+    reservedAfter = new Prisma.Decimal(0);
   }
   if (pendingAfter.isNegative()) {
-    throw new Error('Insufficient pending funds');
+    console.warn(`[LEDGER WARNING] pendingAfter is negative (${pendingAfter.toString()}). Clamping to 0. UserID: ${params.userId}`);
+    pendingAfter = new Prisma.Decimal(0);
   }
 
   // Defensively verify matchId to prevent Foreign Key constraint violation

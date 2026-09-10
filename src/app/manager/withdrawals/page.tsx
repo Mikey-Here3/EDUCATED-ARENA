@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, X, Search, DollarSign } from 'lucide-react';
+import { Check, X, Search, DollarSign, Clock } from 'lucide-react';
 import { BattleConfirmModal } from '@/components/ui/battle-confirm-modal';
+import { formatDateTime } from '@/lib/utils';
 
 export default function WithdrawalsReview() {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -78,15 +79,16 @@ export default function WithdrawalsReview() {
                 <th className="p-4 font-medium">Amount</th>
                 <th className="p-4 font-medium">Method</th>
                 <th className="p-4 font-medium">Account Info</th>
+                <th className="p-4 font-medium">Requested Time</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {loading ? (
-                <tr><td colSpan={6} className="p-4 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="p-4 text-center text-gray-400">Loading...</td></tr>
               ) : withdrawals.length === 0 ? (
-                <tr><td colSpan={6} className="p-4 text-center text-gray-400">No pending withdrawals.</td></tr>
+                <tr><td colSpan={7} className="p-4 text-center text-gray-400">No pending withdrawals.</td></tr>
               ) : (
                 withdrawals.map((withdrawal) => (
                   <tr key={withdrawal.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
@@ -94,13 +96,31 @@ export default function WithdrawalsReview() {
                       <div className="flex items-center gap-3">
                         <div>
                           <p className="text-white font-medium">{withdrawal.user?.displayName || withdrawal.user?.username}</p>
+                          <p className="text-xs text-gray-500">{withdrawal.user?.username}</p>
                         </div>
                       </div>
                     </td>
                     <td className="p-4 text-amber-400 font-bold">PKR {withdrawal.amount}</td>
-                    <td className="p-4 text-gray-300">{withdrawal.paymentMethod}</td>
-                    <td className="p-4 text-gray-400 font-mono text-xs max-w-[150px] truncate" title={JSON.stringify(withdrawal.accountDetails)}>
-                      {JSON.stringify(withdrawal.accountDetails)}
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
+                        withdrawal.method === 'EASYPAISA' 
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                          : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                      }`}>
+                        {withdrawal.method || 'EASYPAISA'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div>
+                        <p className="text-white font-bold text-xs">{withdrawal.accountTitle || withdrawal.accountName || 'N/A'}</p>
+                        <p className="text-cyan-400 font-mono text-xs">{withdrawal.accountNumber || 'N/A'}</p>
+                      </div>
+                    </td>
+                    <td className="p-4 text-gray-300 text-xs whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                        <span>{formatDateTime(withdrawal.createdAt)}</span>
+                      </div>
                     </td>
                     <td className="p-4">
                       <span className={`px-2 py-1 text-xs font-bold rounded ${
@@ -119,8 +139,8 @@ export default function WithdrawalsReview() {
                                 id: withdrawal.id,
                                 action: 'APPROVE',
                                 amount: withdrawal.amount,
-                                user: withdrawal.user?.displayName || 'User',
-                                account: withdrawal.accountNumber || withdrawal.accountName || ''
+                                user: withdrawal.user?.displayName || withdrawal.user?.username || 'User',
+                                account: `${withdrawal.method || 'EASYPAISA'} - ${withdrawal.accountTitle || withdrawal.accountName || ''} (${withdrawal.accountNumber || ''})`
                               })}
                               className="p-2 bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white rounded transition-colors" 
                               title="Approve"
@@ -132,8 +152,8 @@ export default function WithdrawalsReview() {
                                 id: withdrawal.id,
                                 action: 'REJECT',
                                 amount: withdrawal.amount,
-                                user: withdrawal.user?.displayName || 'User',
-                                account: withdrawal.accountNumber || withdrawal.accountName || ''
+                                user: withdrawal.user?.displayName || withdrawal.user?.username || 'User',
+                                account: `${withdrawal.method || 'EASYPAISA'} - ${withdrawal.accountTitle || withdrawal.accountName || ''} (${withdrawal.accountNumber || ''})`
                               })}
                               className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded transition-colors" 
                               title="Reject"

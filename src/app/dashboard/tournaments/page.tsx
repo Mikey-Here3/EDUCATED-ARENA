@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Trophy,
   Calendar,
@@ -14,6 +16,11 @@ import {
   ChevronRight,
   Wifi,
   Loader2,
+  Wallet,
+  AlertCircle,
+  X,
+  ShieldCheck,
+  Flame,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Reveal, Stagger, StaggerItem } from '@/components/motion';
@@ -118,28 +125,133 @@ function DashboardTournamentSkeleton() {
 }
 
 export default function UserTournamentsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [registered, setRegistered] = useState<string[]>([]);
-  const [registeringId, setRegisteringId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  // User details & live wallet balance
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userTeam, setUserTeam] = useState<any>(null);
+
+  // Modal registration state
+  const [selectedTournament, setSelectedTournament] = useState<typeof TOURNAMENTS[0] | null>(null);
+  const [regTeamName, setRegTeamName] = useState('');
+  const [regLeaderUid, setRegLeaderUid] = useState('');
+  const [regLeaderIgn, setRegLeaderIgn] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [regError, setRegError] = useState<string | null>(null);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-      setTimeout(() => setMounted(true), 50);
-    }, 700);
-    return () => clearTimeout(timer);
+    async function loadUserData() {
+      try {
+        const [meRes, walletRes, teamsRes] = await Promise.all([
+          fetch('/api/auth/me', { cache: 'no-store' }),
+          fetch('/api/wallet/summary', { cache: 'no-store' }),
+          fetch('/api/teams', { cache: 'no-store' }),
+        ]);
+
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.user) {
+            setCurrentUser(meData.user);
+            setRegLeaderUid(meData.user.profile?.freeFireUid || '');
+            setRegLeaderIgn(meData.user.profile?.inGameName || meData.user.displayName || '');
+          }
+        }
+
+        if (walletRes.ok) {
+          const wData = await walletRes.json();
+          setWalletBalance(wData.available || 0);
+        }
+
+        if (teamsRes.ok) {
+          const tData = await teamsRes.json();
+          if (Array.isArray(tData.data) && tData.data.length > 0) {
+            // Pick first team where user is leader or member
+            setUserTeam(tData.data[0]);
+            setRegTeamName(tData.data[0].name || '');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load user tournament context:', err);
+      } finally {
+        setLoading(false);
+        setMounted(true);
+      }
+    }
+
+    loadUserData();
   }, []);
 
-  function handleRegister(id: string) {
-    setRegisteringId(id);
-    setTimeout(() => {
-      setRegistered((prev) => [...prev, id]);
-      setRegisteringId(null);
-      setToastMsg('🎉 Your squad is officially registered! Check notifications for room credentials.');
-      setTimeout(() => setToastMsg(null), 4000);
-    }, 800);
+  function handleOpenRegisterModal(t: typeof TOURNAMENTS[0]) {
+    setSelectedTournament(t);
+    setRegError(null);
+    if (!regTeamName && userTeam?.name) {
+      setRegTeamName(userTeam.name);
+    } else if (!regTeamName && currentUser?.displayName) {
+      setRegTeamName(`${currentUser.displayName}'s Squad`);
+    }
+    if (!regLeaderUid && currentUser?.profile?.freeFireUid) {
+      setRegLeaderUid(currentUser.profile.freeFireUid);
+    }
+    if (!regLeaderIgn && (currentUser?.profile?.inGameName || currentUser?.displayName)) {
+      setRegLeaderIgn(currentUser.profile.inGameName || currentUser.displayName);
+    }
+  }
+
+  async function handleConfirmRegistration(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedTournament) return;
+
+    if (!regTeamName.trim()) {
+      setRegError('Please provide a squad or team name');
+      return;
+    }
+
+    if (!regLeaderUid.trim()) {
+      setRegError('Please enter the IGL / Leader Free Fire UID');
+      return;
+    }
+
+    if (walletBalance < selectedTournament.entryFee) {
+      setRegError(`Insufficient Battle Cash. You need PKR ${selectedTournament.entryFee} to enter.`);
+      return;
+    }
+
+    setSubmitting(true);
+    setRegError(null);
+
+    try {
+      const res = await fetch(`/api/tournaments/${selectedTournament.id}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamName: regTeamName.trim(),
+          leaderUid: regLeaderUid.trim(),
+          leaderIgn: regLeaderIgn.trim(),
+          teamId: userTeam?.id || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok) {
+        setRegistered((prev) => [...prev, selectedTournament.id]);
+        setWalletBalance((prev) => Math.max(0, prev - selectedTournament.entryFee));
+        setSelectedTournament(null);
+        setToastMsg(json.message || `🎉 Squad "${regTeamName}" registered! PKR ${selectedTournament.entryFee} auto-deducted.`);
+        router.refresh();
+        setTimeout(() => setToastMsg(null), 5000);
+      } else {
+        setRegError(json.error || 'Failed to complete tournament registration');
+      }
+    } catch {
+      setRegError('Network error registering for tournament');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -185,7 +297,6 @@ export default function UserTournamentsPage() {
           {TOURNAMENTS.map((t, idx) => {
             const cfg = colorMap[t.color] || colorMap.cyan;
             const isReg = registered.includes(t.id);
-            const isPending = registeringId === t.id;
             const fillPct = Math.round((t.slotsUsed / t.slotsTotal) * 100);
             const spotsLeft = t.slotsTotal - t.slotsUsed;
 
@@ -219,24 +330,30 @@ export default function UserTournamentsPage() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-black text-white font-heading mb-1 group-hover:text-glow-cyan transition-all">
+                    <h3 className="text-lg sm:text-xl font-black text-white group-hover:text-glow-cyan transition-colors mb-1">
                       {t.name}
                     </h3>
-                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">{t.desc}</p>
+                    <p className="text-xs text-gray-400 mb-4 line-clamp-2 leading-relaxed">
+                      {t.desc}
+                    </p>
 
-                    {/* Stats Row */}
-                    <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-white/5 border border-white/5 text-xs mb-4">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-white/5 border border-white/5 mb-4 text-center">
                       <div>
-                        <span className="text-gray-500 block text-[9px] uppercase font-bold mb-1">Prize Pool</span>
-                        <span className="font-black text-[#ffbe1a] text-sm">{formatCurrency(t.prizePool)}</span>
+                        <span className="text-[10px] text-gray-500 uppercase font-mono block">Prize Pool</span>
+                        <span className="text-xs sm:text-sm font-black text-[#ffbe1a] font-mono">
+                          {formatCurrency(t.prizePool)}
+                        </span>
+                      </div>
+                      <div className="border-x border-white/10">
+                        <span className="text-[10px] text-gray-500 uppercase font-mono block">Entry Stake</span>
+                        <span className="text-xs sm:text-sm font-black text-white font-mono">
+                          {formatCurrency(t.entryFee)}
+                        </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block text-[9px] uppercase font-bold mb-1">Entry Stake</span>
-                        <span className="font-bold text-white">{formatCurrency(t.entryFee)}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 block text-[9px] uppercase font-bold mb-1">Starts</span>
-                        <span className="font-bold text-white flex items-center gap-1 truncate">
+                        <span className="text-[10px] text-gray-500 uppercase font-mono block">Starts</span>
+                        <span className="text-xs sm:text-sm font-bold text-gray-300 flex items-center justify-center gap-1">
                           <Calendar size={11} className={cfg.icon} />
                           {t.startAt}
                         </span>
@@ -274,21 +391,11 @@ export default function UserTournamentsPage() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => handleRegister(t.id)}
-                        disabled={isPending}
-                        className={`${cfg.btn} flex items-center gap-2 px-5 py-3 text-xs w-full sm:w-auto justify-center active:scale-95 transition-transform disabled:opacity-50`}
+                        onClick={() => handleOpenRegisterModal(t)}
+                        className={`${cfg.btn} flex items-center gap-2 px-5 py-3 text-xs w-full sm:w-auto justify-center active:scale-95 transition-transform cursor-pointer`}
                       >
-                        {isPending ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin" />
-                            Registering...
-                          </>
-                        ) : (
-                          <>
-                            <Swords size={14} />
-                            Register Squad
-                          </>
-                        )}
+                        <Swords size={14} />
+                        Register Squad
                       </button>
                     )}
                     <span className="text-[10px] text-gray-500 text-right">
@@ -299,6 +406,159 @@ export default function UserTournamentsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ─── Registration Modal ─── */}
+      {selectedTournament && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-[#0d0718] border border-cyan-500/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,240,255,0.2)] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <Crown size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">
+                    Squad Registration
+                  </h3>
+                  <p className="text-xs text-slate-400">{selectedTournament.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTournament(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {regError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-xs flex items-center gap-2 font-semibold">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>{regError}</span>
+              </div>
+            )}
+
+            {/* Balance & Auto-Deduct Check */}
+            <div className="p-4 rounded-2xl bg-black/60 border border-white/10 mb-4 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Wallet size={14} className="text-emerald-400" /> Your Battle Cash:
+                </span>
+                <span className="font-black text-emerald-400 text-sm">
+                  {formatCurrency(walletBalance)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-bold uppercase tracking-wider">
+                  Entry Fee (Auto-Deducted):
+                </span>
+                <span className="font-black text-amber-400 text-sm">
+                  {formatCurrency(selectedTournament.entryFee)}
+                </span>
+              </div>
+
+              {walletBalance >= selectedTournament.entryFee ? (
+                <div className="pt-2 border-t border-white/10 flex items-center gap-2 text-[11px] text-emerald-300 font-medium">
+                  <ShieldCheck size={14} className="shrink-0 text-emerald-400" />
+                  <span>Sufficient balance! PKR {selectedTournament.entryFee} will be auto-deducted and held safely in escrow.</span>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-red-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-[11px] text-red-400 font-bold">
+                    Need PKR {selectedTournament.entryFee - walletBalance} more to enter.
+                  </span>
+                  <Link
+                    href="/dashboard/wallet?tab=deposit"
+                    className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-black font-black text-[11px] rounded-lg text-center transition-colors"
+                  >
+                    + Add Cash Now
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Registration Form */}
+            <form onSubmit={handleConfirmRegistration} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-bold uppercase mb-1.5 text-[11px]">
+                  Team / Squad Name <span className="text-cyan-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={regTeamName}
+                  onChange={(e) => setRegTeamName(e.target.value)}
+                  placeholder="e.g. Mikey X or Shadow Warriors"
+                  className="w-full bg-black/60 border border-white/15 focus:border-cyan-400 rounded-xl px-3.5 py-2.5 text-white outline-none font-semibold transition-all text-xs"
+                  required
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Auto-detected from your team profile. You can edit this name for this tournament cup.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold uppercase mb-1.5 text-[11px]">
+                    Leader / IGL Free Fire UID <span className="text-cyan-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={regLeaderUid}
+                    onChange={(e) => setRegLeaderUid(e.target.value)}
+                    placeholder="e.g. 184920491"
+                    className="w-full bg-black/60 border border-white/15 focus:border-cyan-400 rounded-xl px-3.5 py-2.5 text-white outline-none font-mono font-semibold transition-all text-xs"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold uppercase mb-1.5 text-[11px]">
+                    Leader In-Game Name (IGN)
+                  </label>
+                  <input
+                    type="text"
+                    value={regLeaderIgn}
+                    onChange={(e) => setRegLeaderIgn(e.target.value)}
+                    placeholder="e.g. EG_SniperKing"
+                    className="w-full bg-black/60 border border-white/15 focus:border-cyan-400 rounded-xl px-3.5 py-2.5 text-white outline-none font-semibold transition-all text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTournament(null)}
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || walletBalance < selectedTournament.entryFee || !regTeamName.trim() || !regLeaderUid.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-black text-xs uppercase tracking-wide transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Registering...
+                    </>
+                  ) : (
+                    <>
+                      <Swords size={14} />
+                      1-Click Register ({formatCurrency(selectedTournament.entryFee)})
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
     const parsed = depositSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid deposit submission', details: parsed.error.format() }, { status: 400 });
+      const firstIssue = parsed.error.issues[0]?.message || 'Invalid deposit parameters';
+      return NextResponse.json({ error: `Invalid deposit: ${firstIssue}`, details: parsed.error.format() }, { status: 400 });
     }
 
     const { amount, method, transactionReference, accountName, screenshotId } = parsed.data;

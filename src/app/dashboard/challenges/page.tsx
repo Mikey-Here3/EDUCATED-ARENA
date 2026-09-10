@@ -64,6 +64,7 @@ export default function ChallengesDashboardPage() {
         setSuccessMsg(`Challenge ${challenge.publicId} cancelled. PKR ${challenge.entryFee} refunded to your available balance.`);
         setCancelTarget(null);
         loadChallenges();
+        router.refresh();
       } else {
         setError(json.error || 'Failed to cancel challenge');
       }

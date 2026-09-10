@@ -17,13 +17,17 @@ import {
   AlertCircle,
   Loader2,
   Smartphone,
+  RefreshCw,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
+
+import { useRouter } from 'next/navigation';
 
 const QUICK_AMOUNTS = ['50', '100', '250', '500', '1000', '2000'];
 const QUICK_WITHDRAW = ['200', '500', '1000', '2000'];
 
 export default function WalletPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
   const [depositMethod, setDepositMethod] = useState<'EASYPAISA' | 'JAZZCASH'>('EASYPAISA');
   const [depositAmount, setDepositAmount] = useState('500');
@@ -49,6 +53,7 @@ export default function WalletPage() {
   });
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Official tournament cashier accounts for Pakistan
   const officialAccounts = {
@@ -62,16 +67,22 @@ export default function WalletPage() {
     },
   };
 
-  async function loadData() {
+  async function loadData(syncHeader = false) {
     try {
-      const [sumRes, txRes] = await Promise.all([
-        fetch('/api/wallet/summary'),
-        fetch('/api/wallet/transactions'),
-      ]);
+      const sumRes = await fetch('/api/wallet/summary', { cache: 'no-store' });
       if (sumRes.ok) {
         const sumData = await sumRes.json();
         setSummary(sumData);
+        if (syncHeader) {
+          router.refresh();
+        }
       }
+    } catch (e) {
+      console.error('Failed to load wallet summary:', e);
+    }
+
+    try {
+      const txRes = await fetch('/api/wallet/transactions', { cache: 'no-store' });
       if (txRes.ok) {
         const txData = await txRes.json();
         if (txData.data) {
@@ -79,11 +90,17 @@ export default function WalletPage() {
         }
       }
     } catch (e) {
-      console.error('Failed to load wallet data:', e);
+      console.error('Failed to load wallet transactions:', e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
+
+  const handleManualRefresh = () => {
+    setRefreshing(true);
+    loadData(true);
+  };
 
   useEffect(() => {
     loadData();
@@ -231,7 +248,19 @@ export default function WalletPage() {
             <span className="text-xs font-bold text-[#00f59b] uppercase tracking-wider flex items-center gap-1.5">
               <Wallet className="w-4 h-4" /> Battle Cash
             </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00f59b] animate-pulse" />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleManualRefresh}
+                disabled={refreshing}
+                title="Sync Balance"
+                className="px-2 py-0.5 rounded-lg bg-[#00f59b]/10 hover:bg-[#00f59b]/20 text-[#00f59b] border border-[#00f59b]/30 transition-all flex items-center gap-1 text-[10px] font-bold cursor-pointer"
+              >
+                <RefreshCw className={cn("w-2.5 h-2.5", refreshing && "animate-spin")} />
+                <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
+              </button>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00f59b] animate-pulse" />
+            </div>
           </div>
           <div className="text-3xl sm:text-4xl font-black text-white font-heading tracking-tight">
             {formatCurrency(summary.available)}

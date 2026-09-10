@@ -154,7 +154,7 @@ export async function POST(
       });
 
       return { matchId: match.id, publicId: match.publicId };
-    });
+    }, { maxWait: 10000, timeout: 20000 });
 
     return NextResponse.json({
       success: true,
