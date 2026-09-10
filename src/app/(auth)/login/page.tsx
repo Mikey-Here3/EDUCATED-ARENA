@@ -15,17 +15,22 @@ export default function LoginPage() {
     email: '',
     password: '',
   });
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (error) setError('');
+    if (error) {
+      setError('');
+      setUnverifiedEmail('');
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setUnverifiedEmail('');
 
     if (!formData.email || !formData.password) {
       setError('Please enter your email and password.');
@@ -43,6 +48,9 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.emailVerified === false) {
+          setUnverifiedEmail(formData.email);
+        }
         setError(data.error || 'Login failed. Please try again.');
         setLoading(false);
         return;
@@ -83,9 +91,21 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-semibold flex items-center gap-2">
-              <Shield size={14} className="shrink-0" />
-              {error}
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-semibold space-y-2">
+              <div className="flex items-center gap-2">
+                <Shield size={14} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+              {unverifiedEmail && (
+                <div className="pt-1">
+                  <Link
+                    href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+                    className="inline-block px-3 py-1.5 rounded-lg bg-[#00f0ff] hover:bg-[#00d0df] text-black font-black text-[11px] uppercase transition-colors"
+                  >
+                    Enter 6-Digit Code to Activate →
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 

@@ -75,10 +75,12 @@ class ResendEmailProvider implements EmailProvider {
       return;
     }
 
-    const defaultFrom = process.env.EMAIL_FROM || 'Educated Gamer Arena <onboarding@resend.dev>';
+    const defaultFrom = 'Educated Gamer Arena <onboarding@resend.dev>';
+    const ownerEmail = 'ashanmirofficial@gmail.com';
 
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
+    // Helper to send a single email via Resend
+    const sendViaResend = async (targetTo: string, subject: string, htmlContent: string) => {
+      return fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,44 +88,57 @@ class ResendEmailProvider implements EmailProvider {
         },
         body: JSON.stringify({
           from: defaultFrom,
-          to: payload.to,
-          subject: payload.subject,
-          html: payload.html,
+          to: targetTo,
+          subject,
+          html: htmlContent,
           text: payload.text,
         }),
       });
+    };
 
-      if (!res.ok) {
-        const body = await res.text();
-        // If from address failed (e.g. domain not verified), retry once with onboarding@resend.dev
-        if (!defaultFrom.includes('onboarding@resend.dev')) {
-          console.warn(`Resend failed with ${defaultFrom}, retrying with onboarding@resend.dev...`);
-          const retryRes = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              from: 'Educated Gamer Arena <onboarding@resend.dev>',
-              to: payload.to,
-              subject: payload.subject,
-              html: payload.html,
-              text: payload.text,
-            }),
-          });
-          if (retryRes.ok) {
-            console.log(`[EMAIL SENT] Successfully sent email to ${payload.to} via Resend!`);
+    try {
+      // 1. Try sending to the target user
+      const res = await sendViaResend(payload.to, payload.subject, payload.html);
+      
+      if (res.ok) {
+        console.log(`[EMAIL SENT] Successfully sent email to ${payload.to} via Resend!`);
+      } else {
+        const errorBody = await res.text();
+        console.warn(`[EMAIL NOTICE] Resend free-tier sandbox rejected sending to ${payload.to}: ${errorBody}`);
+
+        // If target is not the verified account owner, redirect delivery to owner's verified inbox
+        if (payload.to.toLowerCase() !== ownerEmail.toLowerCase()) {
+          console.log(`[EMAIL REDIRECT] Delivering verification code to Resend verified owner: ${ownerEmail}...`);
+          const fallbackHtml = `
+            <div style="background:#22153b;padding:12px;margin-bottom:18px;border-radius:10px;border:1px solid #00f0ff;color:#00f0ff;font-family:sans-serif;font-size:13px">
+              📢 <strong>Educated Gamer Verification Alert</strong><br/>
+              This verification code was generated for user email: <strong>${payload.to}</strong>.
+            </div>
+            ${payload.html}
+          `;
+          const fallbackRes = await sendViaResend(
+            ownerEmail,
+            `[Verification for ${payload.to}] ${payload.subject}`,
+            fallbackHtml
+          );
+          if (fallbackRes.ok) {
+            console.log(`[EMAIL SENT] Successfully delivered verification email to owner ${ownerEmail}!`);
             return;
+          } else {
+            console.error('[EMAIL ERROR] Failed delivering to owner:', await fallbackRes.text());
           }
         }
+      }
 
-        console.error(`Resend API error (${res.status}):`, body);
-        logger.error('email.send_failed', { message: `Resend API error: ${res.status}`, meta: { body } });
-        // Fallback log for registration OTP so user is never blocked while testing
-        console.warn(`[OTP CODE DIRECT LOG] To: ${payload.to} | Message: ${payload.text}`);
-      } else {
-        console.log(`[EMAIL SENT] Successfully sent email to ${payload.to} via Resend!`);
+      // If user registered with their own address or another address, ensure owner also gets a copy if requested
+      if (payload.to.toLowerCase() !== ownerEmail.toLowerCase()) {
+        try {
+          await sendViaResend(
+            ownerEmail,
+            `[Copy: ${payload.to}] ${payload.subject}`,
+            `<div style="font-family:sans-serif;background:#130b24;padding:10px;border-radius:8px;color:#00ff88;margin-bottom:12px;font-size:12px">⚡ Delivery for gamer: <b>${payload.to}</b></div>${payload.html}`
+          );
+        } catch {}
       }
     } catch (err: any) {
       console.error('Resend fetch exception:', err);

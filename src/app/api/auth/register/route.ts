@@ -40,9 +40,48 @@ export async function POST(req: NextRequest) {
 
     if (existingUser) {
       if (existingUser.email.toLowerCase() === email.toLowerCase()) {
-        return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
+        if (!existingUser.emailVerified) {
+          const freshToken = generateOTP(6);
+          const freshExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          const newPasswordHash = await hashPassword(password);
+
+          await prisma.$transaction([
+            prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                passwordHash: newPasswordHash,
+                emailVerifyToken: freshToken,
+                emailVerifyExpiry: freshExpiry,
+                displayName: displayName || existingUser.displayName,
+                phone: phone || existingUser.phone,
+              },
+            }),
+            prisma.emailVerification.upsert({
+              where: { token: freshToken },
+              create: {
+                userId: existingUser.id,
+                token: freshToken,
+                expiresAt: freshExpiry,
+              },
+              update: {
+                expiresAt: freshExpiry,
+              },
+            }),
+          ]);
+
+          await sendVerificationEmail(existingUser.email, freshToken, existingUser.displayName || existingUser.username);
+          console.log(`[REGISTER RE-TRIGGER] Fresh OTP ${freshToken} sent for unverified account: ${existingUser.email}`);
+
+          return NextResponse.json({
+            success: true,
+            message: 'An unverified account exists. A fresh 6-digit verification code has been dispatched to your email!',
+            userId: existingUser.id,
+            email: existingUser.email,
+          });
+        }
+        return NextResponse.json({ error: 'This email is already registered. Please go to Login.' }, { status: 400 });
       }
-      return NextResponse.json({ error: 'Username already taken' }, { status: 400 });
+      return NextResponse.json({ error: 'Username already taken. Please pick another gamer tag.' }, { status: 400 });
     }
 
     const passwordHash = await hashPassword(password);
