@@ -75,7 +75,7 @@ class ResendEmailProvider implements EmailProvider {
       return;
     }
 
-    const defaultFrom = 'Educated Gamer Arena <onboarding@resend.dev>';
+    const defaultFrom = APP_CONFIG.email.from || process.env.EMAIL_FROM || 'Educated Gamer Arena <noreply@studyhouse.online>';
     const ownerEmail = 'ashanmirofficial@gmail.com';
 
     // Helper to send a single email via Resend

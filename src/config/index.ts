@@ -15,8 +15,8 @@ export const APP_CONFIG = {
     isProduction: process.env.NODE_ENV === 'production',
   },
   email: {
-    provider: process.env.EMAIL_PROVIDER || 'console',
-    from: process.env.EMAIL_FROM || 'noreply@educatedgamer.com',
+    provider: process.env.EMAIL_PROVIDER || 'resend',
+    from: process.env.EMAIL_FROM || 'Educated Gamer Arena <noreply@studyhouse.online>',
     apiKey: process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY,
     smtp: {
       host: process.env.SMTP_HOST,
