@@ -88,7 +88,8 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push('/verify-email?email=' + encodeURIComponent(formData.email));
+      router.push('/dashboard');
+      router.refresh();
     } catch {
       setGeneralError('Network error. Please check your connection and try again.');
       setLoading(false);

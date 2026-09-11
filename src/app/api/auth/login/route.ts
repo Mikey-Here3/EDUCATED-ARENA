@@ -56,12 +56,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!user.emailVerified) {
-      return NextResponse.json(
-        { error: 'Please verify your email address before logging in.' },
-        { status: 403 }
-      );
-    }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       return NextResponse.json(
@@ -90,13 +84,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Reset login attempts & update last login
+    // Reset login attempts & update last login + auto-verify
     await prisma.user.update({
       where: { id: user.id },
       data: {
         loginAttempts: 0,
         lockedUntil: null,
         lastLoginAt: new Date(),
+        emailVerified: true,
       },
     });
 

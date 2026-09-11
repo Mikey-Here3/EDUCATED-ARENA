@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { hashPassword, generateToken, generateOTP } from '@/lib/auth/password';
+import { hashPassword, verifyPassword, generateToken, generateOTP } from '@/lib/auth/password';
 import { registerSchema } from '@/lib/validation/schemas';
 import { rateLimit } from '@/lib/auth/rate-limit';
+import { createSession } from '@/lib/auth/session';
 import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
@@ -39,56 +40,49 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingUser) {
-      if (existingUser.email.toLowerCase() === email.toLowerCase()) {
-        if (!existingUser.emailVerified) {
-          const freshToken = generateOTP(6);
-          const freshExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-          const newPasswordHash = await hashPassword(password);
+      // Check if password matches existing user
+      const isPasswordMatch = await verifyPassword(password, existingUser.passwordHash);
 
-          await prisma.$transaction([
-            prisma.user.update({
-              where: { id: existingUser.id },
-              data: {
-                passwordHash: newPasswordHash,
-                emailVerifyToken: freshToken,
-                emailVerifyExpiry: freshExpiry,
-                displayName: displayName || existingUser.displayName,
-                phone: phone || existingUser.phone,
-              },
-            }),
-            prisma.emailVerification.upsert({
-              where: { token: freshToken },
-              create: {
-                userId: existingUser.id,
-                token: freshToken,
-                expiresAt: freshExpiry,
-              },
-              update: {
-                expiresAt: freshExpiry,
-              },
-            }),
-          ]);
+      if (isPasswordMatch) {
+        // Auto-verify and log them in smoothly
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            emailVerified: true,
+            lastLoginAt: new Date(),
+          },
+        });
 
-          await sendVerificationEmail(existingUser.email, freshToken, existingUser.displayName || existingUser.username);
-          console.log(`[REGISTER RE-TRIGGER] Fresh OTP ${freshToken} sent for unverified account: ${existingUser.email}`);
+        await createSession(existingUser.id);
 
-          return NextResponse.json({
-            success: true,
-            message: 'An unverified account exists. A fresh 6-digit verification code has been dispatched to your email!',
-            userId: existingUser.id,
+        return NextResponse.json({
+          success: true,
+          loggedIn: true,
+          message: `Welcome back, ${existingUser.displayName || existingUser.username}! Entering the arena...`,
+          user: {
+            id: existingUser.id,
             email: existingUser.email,
-          });
-        }
-        return NextResponse.json({ error: 'This email is already registered. Please go to Login.' }, { status: 400 });
+            username: existingUser.username,
+            displayName: existingUser.displayName,
+          },
+        });
       }
-      return NextResponse.json({ error: 'Username already taken. Please pick another gamer tag.' }, { status: 400 });
+
+      if (existingUser.email.toLowerCase() === email.toLowerCase()) {
+        return NextResponse.json({ error: 'An account with this email already exists. Please log in with your password.' }, { status: 400 });
+      }
+
+      const suggestedTag = `${username}_${Math.floor(10 + Math.random() * 89)}`;
+      return NextResponse.json({ 
+        errors: { username: `Gamer tag "${username}" is already claimed. How about "${suggestedTag}"?` } 
+      }, { status: 400 });
     }
 
     const passwordHash = await hashPassword(password);
     const verifyToken = generateOTP(6); // 6-digit OTP
     const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Database transaction: create User + Profile + Wallet + EmailVerification in atomic step
+    // Database transaction: create User + Profile + Wallet + EmailVerification
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -98,6 +92,7 @@ export async function POST(req: NextRequest) {
           displayName,
           phone,
           dateOfBirth: new Date(dateOfBirth),
+          emailVerified: true, // Auto-verified so players can play immediately!
           emailVerifyToken: verifyToken,
           emailVerifyExpiry: verifyExpiry,
           termsAcceptedAt: new Date(),
@@ -123,18 +118,25 @@ export async function POST(req: NextRequest) {
           userId: newUser.id,
           token: verifyToken,
           expiresAt: verifyExpiry,
+          usedAt: new Date(),
         },
       });
 
       return newUser;
     });
 
-    // Send verification email via provider
-    await sendVerificationEmail(user.email, verifyToken, user.displayName || user.username);
+    // Auto-create active session for the player
+    await createSession(user.id);
+
+    // Send welcome email in background (non-blocking)
+    sendVerificationEmail(user.email, verifyToken, user.displayName || user.username).catch((err) => {
+      console.warn('[WELCOME EMAIL NOTICE] Non-fatal background email delivery error:', err?.message);
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Account created successfully. Please verify your email.',
+      loggedIn: true,
+      message: 'Account created successfully! Welcome to Educated Gamer Arena.',
       userId: user.id,
       email: user.email,
     });

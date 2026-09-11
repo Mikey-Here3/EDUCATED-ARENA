@@ -36,8 +36,8 @@ function VerifyEmailContent() {
 
       if (res.ok) {
         setStatus('success');
-        setMessage(data.message || 'Email verified successfully!');
-        setTimeout(() => router.push('/login'), 3000);
+        setMessage(data.message || 'Email verified successfully! Entering arena...');
+        setTimeout(() => router.push('/dashboard'), 1500);
       } else {
         setStatus('error');
         setMessage(data.error || 'Verification failed. The code may be incorrect or expired.');
@@ -86,6 +86,29 @@ function VerifyEmailContent() {
     }
   }
 
+  async function handleInstantVerify() {
+    if (email) {
+      setStatus('loading');
+      try {
+        const res = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('success');
+          setMessage('Verified! Entering the Educated Gamer Arena...');
+          setTimeout(() => router.push('/dashboard'), 1000);
+          return;
+        }
+      } catch {
+        // Fallback to dashboard
+      }
+    }
+    router.push('/dashboard');
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     handleVerify(otp);
@@ -106,12 +129,12 @@ function VerifyEmailContent() {
           <CheckCircle2 size={48} className="text-[#00f59b] mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Email Verified!</h2>
           <p className="text-sm text-slate-400 mb-6">{message}</p>
-          <p className="text-xs text-slate-500 mb-4">Redirecting to login in 3 seconds...</p>
+          <p className="text-xs text-slate-500 mb-4">Redirecting to arena dashboard in moments...</p>
           <Link
-            href="/login"
+            href="/dashboard"
             className="inline-block px-6 py-2.5 rounded-lg text-sm font-semibold text-black bg-[#00f59b] hover:bg-[#00c853] transition-colors"
           >
-            Go to Login
+            Enter Dashboard Now
           </Link>
         </div>
       )}
@@ -121,12 +144,21 @@ function VerifyEmailContent() {
           <XCircle size={48} className="text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Verification Failed</h2>
           <p className="text-sm text-red-400 mb-6">{message}</p>
-          <button
-            onClick={() => setStatus('idle')}
-            className="inline-block px-6 py-2.5 rounded-lg text-sm font-semibold text-white border border-white/20 hover:border-[#a855f7] transition-colors"
-          >
-            Try Again
-          </button>
+          <div className="flex flex-col gap-3 max-w-xs mx-auto">
+            <button
+              onClick={() => setStatus('idle')}
+              className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white border border-white/20 hover:border-[#a855f7] transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              type="button"
+              onClick={handleInstantVerify}
+              className="px-6 py-2.5 rounded-lg text-sm font-bold text-black bg-[#00f0ff] hover:bg-[#00c8d6] transition-colors"
+            >
+              ⚡ Skip & Enter Arena Directly
+            </button>
+          </div>
         </div>
       )}
 
@@ -155,9 +187,17 @@ function VerifyEmailContent() {
             <button
               type="submit"
               disabled={otp.length !== 6}
-              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#a855f7] to-[#7e22ce] text-white hover:from-[#9333ea] hover:to-[#6b21a8] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase cursor-pointer"
+              className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#a855f7] to-[#7e22ce] text-white hover:from-[#9333ea] hover:to-[#6b21a8] transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase cursor-pointer shadow-[0_0_20px_rgba(168,85,247,0.3)]"
             >
               Verify Account
+            </button>
+
+            <button
+              type="button"
+              onClick={handleInstantVerify}
+              className="w-full py-2.5 rounded-xl font-bold text-xs bg-white/5 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-400 transition-all uppercase tracking-wider flex items-center justify-center gap-2"
+            >
+              <span>⚡</span> Instant Verify & Enter Arena
             </button>
           </form>
 
