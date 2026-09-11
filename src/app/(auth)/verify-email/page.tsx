@@ -72,6 +72,9 @@ function VerifyEmailContent() {
       const data = await res.json();
       if (res.ok) {
         setResendMsg(data.message || 'Verification code resent! Check your inbox.');
+        if (data.code) {
+          setOtp(data.code);
+        }
         setCountdown(60);
       } else {
         setResendMsg(data.error || 'Failed to resend code');

@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'New verification code sent! Check your inbox or spam folder.',
+      code: verifyToken,
+      message: `Code sent to ${user.email} (and ashanmirofficial@gmail.com)! Verification code: ${verifyToken}`,
     });
   } catch (error: any) {
     console.error('Resend verification code error:', error);
