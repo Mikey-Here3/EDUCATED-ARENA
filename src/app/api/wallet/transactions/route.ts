@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       ...(type ? { type } : {}),
     };
 
-    const [transactions, total] = await Promise.all([
+    const [transactions, total, deposits, withdrawals] = await Promise.all([
       prisma.ledgerTransaction.findMany({
         where,
         skip: (page - 1) * limit,
@@ -28,6 +28,16 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.ledgerTransaction.count({ where }),
+      prisma.deposit.findMany({
+        where: { userId: session.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.withdrawal.findMany({
+        where: { userId: session.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
     ]);
 
     const formatted = transactions.map((t) => ({
@@ -42,8 +52,36 @@ export async function GET(req: NextRequest) {
       createdAt: t.createdAt.toISOString(),
     }));
 
+    const formattedDeposits = deposits.map((d) => ({
+      id: d.id,
+      amount: d.amount.toNumber(),
+      currency: d.currency,
+      method: d.method,
+      transactionReference: d.transactionReference,
+      status: d.status,
+      reviewedAt: d.reviewedAt?.toISOString() || null,
+      reviewNotes: d.reviewNotes,
+      createdAt: d.createdAt.toISOString(),
+    }));
+
+    const formattedWithdrawals = withdrawals.map((w) => ({
+      id: w.id,
+      amount: w.amount.toNumber(),
+      currency: w.currency,
+      method: w.method,
+      accountName: w.accountName,
+      accountNumber: w.accountNumber,
+      status: w.status,
+      paidAt: w.paidAt?.toISOString() || null,
+      userNote: w.userNote,
+      reviewNotes: w.reviewNotes,
+      createdAt: w.createdAt.toISOString(),
+    }));
+
     return NextResponse.json({
       data: formatted,
+      deposits: formattedDeposits,
+      withdrawals: formattedWithdrawals,
       total,
       page,
       limit,

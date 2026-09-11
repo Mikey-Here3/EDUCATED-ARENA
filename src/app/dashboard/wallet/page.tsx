@@ -52,6 +52,9 @@ export default function WalletPage() {
     totalWithdrawals: 0,
   });
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [userDeposits, setUserDeposits] = useState<any[]>([]);
+  const [userWithdrawals, setUserWithdrawals] = useState<any[]>([]);
+  const [historySubTab, setHistorySubTab] = useState<'all' | 'withdrawals' | 'deposits'>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -88,6 +91,12 @@ export default function WalletPage() {
         if (txData.data) {
           setTransactions(txData.data);
         }
+        if (txData.deposits) {
+          setUserDeposits(txData.deposits);
+        }
+        if (txData.withdrawals) {
+          setUserWithdrawals(txData.withdrawals);
+        }
       }
     } catch (e) {
       console.error('Failed to load wallet transactions:', e);
@@ -104,6 +113,10 @@ export default function WalletPage() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(() => {
+      loadData();
+    }, 15000); // Live poll every 15s for instant wallet updates
+    return () => clearInterval(interval);
   }, []);
 
   function handleCopyNumber(num: string) {
@@ -120,43 +133,54 @@ export default function WalletPage() {
     const fileInput = document.getElementById('depositScreenshot') as HTMLInputElement;
     const file = fileInput?.files?.[0];
 
-    if (!file) {
-      setDepositMessage({ type: 'error', text: 'Please select a screenshot to upload.' });
+    if (!file && !depositRef.trim()) {
+      setDepositMessage({
+        type: 'error',
+        text: 'Please enter your Transaction ID (TID) or upload a payment screenshot.',
+      });
       setDepositLoading(false);
       return;
     }
 
     try {
-      // 1. Upload the screenshot
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'PAYMENT_SCREENSHOT');
+      let screenshotId: string | undefined = undefined;
 
-      const uploadRes = await fetch('/api/uploads', {
-        method: 'POST',
-        body: formData,
-      });
+      // 1. Upload screenshot if selected
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', 'PAYMENT_SCREENSHOT');
 
-      const uploadJson = await uploadRes.json();
-      if (!uploadRes.ok) {
-        setDepositMessage({ type: 'error', text: uploadJson.error || 'Failed to upload screenshot' });
-        setDepositLoading(false);
-        return;
+        const uploadRes = await fetch('/api/uploads', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const uploadJson = await uploadRes.json();
+        if (!uploadRes.ok) {
+          setDepositMessage({
+            type: 'error',
+            text: uploadJson.error || 'Failed to upload screenshot. You can also submit just your Transaction ID.',
+          });
+          setDepositLoading(false);
+          return;
+        }
+
+        screenshotId = uploadJson.fileAsset?.id;
       }
-
-      const screenshotId = uploadJson.fileAsset.id;
 
       // 2. Submit the deposit
       const res = await fetch('/api/wallet/deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: parseFloat(depositAmount),
+          amount: parseFloat(depositAmount) || 50,
           method: depositMethod,
-          transactionReference: depositRef,
+          transactionReference: depositRef.trim() || undefined,
           screenshotId,
         }),
       });
+
       const json = await res.json();
       if (res.ok) {
         setDepositMessage({
@@ -165,7 +189,7 @@ export default function WalletPage() {
         });
         setDepositRef('');
         if (fileInput) fileInput.value = '';
-        loadData();
+        loadData(true);
       } else {
         setDepositMessage({ type: 'error', text: json.error || 'Failed to submit deposit' });
       }
@@ -298,9 +322,12 @@ export default function WalletPage() {
       {/* Mobile-First Big Touch Tabs */}
       <div className="grid grid-cols-3 gap-2 p-1.5 bg-[#0e091d] border border-white/10 rounded-2xl">
         <button
-          onClick={() => setActiveTab('deposit')}
+          onClick={() => {
+            setActiveTab('deposit');
+            loadData(true);
+          }}
           className={cn(
-            'flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95',
+            'flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer',
             activeTab === 'deposit'
               ? 'bg-[#00f59b] text-black shadow-[0_0_15px_rgba(0,245,155,0.4)]'
               : 'text-slate-400 hover:text-white'
@@ -311,9 +338,12 @@ export default function WalletPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('withdraw')}
+          onClick={() => {
+            setActiveTab('withdraw');
+            loadData(true);
+          }}
           className={cn(
-            'flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95',
+            'flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer',
             activeTab === 'withdraw'
               ? 'bg-[#ffb703] text-black shadow-[0_0_15px_rgba(255,183,3,0.4)]'
               : 'text-slate-400 hover:text-white'
@@ -324,9 +354,12 @@ export default function WalletPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => {
+            setActiveTab('history');
+            loadData(true);
+          }}
           className={cn(
-            'flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95',
+            'flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer',
             activeTab === 'history'
               ? 'bg-[#9d4edd] text-white shadow-[0_0_15px_rgba(157,78,221,0.4)]'
               : 'text-slate-400 hover:text-white'
@@ -675,59 +708,259 @@ export default function WalletPage() {
         </form>
       )}
 
-      {/* ─── TAB 3: CASH HISTORY ─── */}
+      {/* ─── TAB 3: CASH HISTORY & REQUESTS ─── */}
       {activeTab === 'history' && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#100b21] border border-white/10 space-y-3">
-          <h3 className="font-bold text-white text-base mb-3 flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-[#9d4edd]" /> Recent Cash Activity
-          </h3>
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#100b21] border border-white/10 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <h3 className="font-bold text-white text-base flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-[#9d4edd]" /> Financial History &amp; Requests
+            </h3>
 
-          {transactions.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm">
-              No transactions yet. Add cash or play a battle to see history.
+            {/* Sub-filter tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-black/40 rounded-xl border border-white/10 text-xs">
+              <button
+                type="button"
+                onClick={() => setHistorySubTab('all')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer',
+                  historySubTab === 'all'
+                    ? 'bg-[#9d4edd] text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                All Activity ({transactions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistorySubTab('withdrawals')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer',
+                  historySubTab === 'withdrawals'
+                    ? 'bg-[#ffb703] text-black shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                Cashouts ({userWithdrawals.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistorySubTab('deposits')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer',
+                  historySubTab === 'deposits'
+                    ? 'bg-[#00f59b] text-black shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                Deposits ({userDeposits.length})
+              </button>
             </div>
-          ) : (
-            <div className="divide-y divide-white/5 space-y-2">
-              {transactions.map((tx) => {
-                const isCredit = [
-                  'DEPOSIT',
-                  'DEPOSIT_APPROVED',
-                  'WINNING_CREDIT',
-                  'REFUND',
-                  'MATCH_RESERVATION_RELEASE',
-                ].includes(tx.type);
+          </div>
 
-                return (
-                  <div key={tx.id} className="pt-2 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs sm:text-sm font-semibold text-white">
-                        {tx.description || tx.type}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        {new Date(tx.createdAt).toLocaleDateString('en-PK', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
+          {/* SubTab 1: All Transactions */}
+          {historySubTab === 'all' && (
+            transactions.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-sm">
+                No ledger transactions yet. Add cash or enter a match to see activity.
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5 space-y-2">
+                {transactions.map((tx) => {
+                  const isCredit = [
+                    'DEPOSIT',
+                    'DEPOSIT_APPROVED',
+                    'WINNING_CREDIT',
+                    'REFUND',
+                    'MATCH_RESERVATION_RELEASE',
+                  ].includes(tx.type);
+
+                  return (
+                    <div key={tx.id} className="pt-2.5 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs sm:text-sm font-semibold text-white">
+                          {tx.description || tx.type}
+                        </p>
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
+                          <Clock className="w-3 h-3 text-slate-500 inline" />
+                          {new Date(tx.createdAt).toLocaleString('en-PK', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                          })}
+                        </p>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p
+                          className={cn(
+                            'font-mono font-bold text-sm',
+                            isCredit ? 'text-[#00f59b]' : 'text-[#ff3b56]'
+                          )}
+                        >
+                          {isCredit ? '+' : '-'} {formatCurrency(tx.amount)}
+                        </p>
+                        <span className="text-[10px] text-slate-400 uppercase font-mono">{tx.status}</span>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            )
+          )}
 
-                    <div className="text-right">
-                      <p
-                        className={cn(
-                          'font-mono font-bold text-sm',
-                          isCredit ? 'text-[#00f59b]' : 'text-[#ff3b56]'
+          {/* SubTab 2: Cashouts / Withdrawals with Exact Submission & Paid Time */}
+          {historySubTab === 'withdrawals' && (
+            userWithdrawals.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-sm">
+                No cashout requests yet. When you request a withdrawal, its live status and exact processing time will appear here.
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5 space-y-3">
+                {userWithdrawals.map((w) => {
+                  const statusColors: Record<string, string> = {
+                    PENDING: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+                    APPROVED: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-400',
+                    PAID: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
+                    REJECTED: 'bg-red-500/15 border-red-500/40 text-red-400',
+                    CANCELLED: 'bg-slate-500/15 border-slate-500/40 text-slate-400',
+                  };
+
+                  return (
+                    <div key={w.id} className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border', statusColors[w.status] || statusColors.PENDING)}>
+                            {w.status === 'PAID' ? '✓ SENT TO MOBILE WALLET' : w.status}
+                          </span>
+                          <span className="text-xs font-bold text-white">
+                            {w.method} • {w.accountNumber}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-300">
+                          Account Title: <span className="font-semibold text-white">{w.accountName}</span>
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-400" />
+                            Requested: {new Date(w.createdAt).toLocaleString('en-PK', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true,
+                            })}
+                          </span>
+                          {w.paidAt && (
+                            <span className="text-emerald-400 font-semibold">
+                              Paid at: {new Date(w.paidAt).toLocaleString('en-PK', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })}
+                            </span>
+                          )}
+                        </div>
+
+                        {w.reviewNotes && (
+                          <p className="text-[11px] text-cyan-300 italic mt-0.5">
+                            Referee Note: {w.reviewNotes}
+                          </p>
                         )}
-                      >
-                        {isCredit ? '+' : '-'} {formatCurrency(tx.amount)}
-                      </p>
-                      <span className="text-[10px] text-slate-400 uppercase">{tx.status}</span>
+                      </div>
+
+                      <div className="text-left sm:text-right shrink-0">
+                        <span className="text-base sm:text-lg font-black font-mono text-[#ffb703]">
+                          {formatCurrency(w.amount)}
+                        </span>
+                        <p className="text-[10px] text-slate-500">Free Fire Escrow Payout</p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* SubTab 3: Deposits with exact Submission Time & Verification Status */}
+          {historySubTab === 'deposits' && (
+            userDeposits.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-sm">
+                No deposit requests yet. Add cash to see verification timeline and status here.
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5 space-y-3">
+                {userDeposits.map((d) => {
+                  const statusColors: Record<string, string> = {
+                    PENDING: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+                    APPROVED: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
+                    REJECTED: 'bg-red-500/15 border-red-500/40 text-red-400',
+                  };
+
+                  return (
+                    <div key={d.id} className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border', statusColors[d.status] || statusColors.PENDING)}>
+                            {d.status === 'APPROVED' ? '✓ APPROVED & CREDITED' : d.status}
+                          </span>
+                          <span className="text-xs font-bold text-white">
+                            {d.method} {d.transactionReference ? `• TID: ${d.transactionReference}` : '• Screenshot Attached'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-[#00f59b]" />
+                            Submitted: {new Date(d.createdAt).toLocaleString('en-PK', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true,
+                            })}
+                          </span>
+                          {d.reviewedAt && (
+                            <span className="text-emerald-400 font-semibold">
+                              Verified: {new Date(d.reviewedAt).toLocaleString('en-PK', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })}
+                            </span>
+                          )}
+                        </div>
+
+                        {d.reviewNotes && (
+                          <p className="text-[11px] text-cyan-300 italic mt-0.5">
+                            Note: {d.reviewNotes}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-left sm:text-right shrink-0">
+                        <span className="text-base sm:text-lg font-black font-mono text-[#00f59b]">
+                          +{formatCurrency(d.amount)}
+                        </span>
+                        <p className="text-[10px] text-slate-500">Cash Deposit</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       )}

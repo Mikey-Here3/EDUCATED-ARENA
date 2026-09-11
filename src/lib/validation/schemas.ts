@@ -86,20 +86,20 @@ export const matchResultSchema = z.object({
 });
 
 export const depositSchema = z.object({
-  amount: z.number().min(50),
-  method: z.string().min(1),
-  transactionReference: z.string().min(5),
-  accountName: z.string().optional(),
-  screenshotId: z.string().optional(),
+  amount: z.coerce.number().min(50, 'Minimum deposit is PKR 50'),
+  method: z.string().min(1, 'Payment method is required'),
+  transactionReference: z.string().optional().nullable().or(z.literal('')),
+  accountName: z.string().optional().nullable().or(z.literal('')),
+  screenshotId: z.string().optional().nullable().or(z.literal('')),
 });
 
 export const withdrawalSchema = z.object({
-  amount: z.number().min(200),
-  method: z.string().min(1),
-  accountName: z.string().min(2),
-  accountNumber: z.string().min(5),
-  accountTitle: z.string().optional(),
-  userNote: z.string().max(200).optional(),
+  amount: z.coerce.number().min(200, 'Minimum withdrawal is PKR 200'),
+  method: z.string().min(1, 'Payment method is required'),
+  accountName: z.string().min(1).optional().nullable(),
+  accountNumber: z.string().min(5, 'Valid account number is required'),
+  accountTitle: z.string().optional().nullable(),
+  userNote: z.string().max(200).optional().nullable(),
 });
 
 export const adminAdjustmentSchema = z.object({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth/session';
 import { settleMatch } from '@/lib/financial/settlement';
+import { releaseFunds } from '@/lib/financial/ledger';
 import { MatchStatus, NotificationType } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 
@@ -341,6 +342,65 @@ export async function POST(
       revalidatePath('/leaderboard');
 
       return NextResponse.json({ success: true, message: 'Match settled and winnings credited to winners.' });
+    }
+
+    // 8. Cancel Match & Release Reserved Funds
+    if (action === 'cancel') {
+      const isParticipant = match.participants.some((p) => p.userId === session.id);
+      const isManagerOrAdmin = session.role === 'MANAGER' || session.role === 'ADMIN';
+
+      if (!isParticipant && !isManagerOrAdmin) {
+        return NextResponse.json({ error: 'Permission denied to cancel this match' }, { status: 403 });
+      }
+
+      if (['LIVE', 'RESULT_SUBMITTED', 'RESULT_VERIFIED', 'COMPLETED'].includes(match.status)) {
+        return NextResponse.json({ error: 'Cannot cancel a match that is live or completed' }, { status: 400 });
+      }
+
+      const { reason } = body;
+
+      await prisma.$transaction(async (tx) => {
+        // Release funds for all participants
+        for (const p of match.participants) {
+          await releaseFunds(tx, {
+            userId: p.userId,
+            amount: match.entryFee.toNumber(),
+            matchId: match.id,
+            referenceType: 'MATCH_CANCEL',
+            referenceId: match.id,
+            description: `Refund PKR ${match.entryFee.toNumber()} from cancelled match ${match.publicId}`,
+          });
+
+          await tx.notification.create({
+            data: {
+              userId: p.userId,
+              type: NotificationType.ACCOUNT_WARNING,
+              title: 'Match Cancelled',
+              message: `Match ${match.publicId} was cancelled. Your entry fee of PKR ${match.entryFee.toNumber()} has been returned to your wallet.`,
+              linkUrl: '/dashboard/wallet',
+            },
+          });
+        }
+
+        await tx.match.update({
+          where: { id: matchId },
+          data: {
+            status: MatchStatus.CANCELLED,
+            cancelledAt: new Date(),
+            cancelledById: session.id,
+            cancellationReason: reason || 'Cancelled by participant/referee before battle started',
+          },
+        });
+
+        if (match.challengeId) {
+          await tx.challenge.update({
+            where: { id: match.challengeId },
+            data: { status: 'CANCELLED' },
+          });
+        }
+      });
+
+      return NextResponse.json({ success: true, message: 'Match cancelled and entry fees refunded to players.' });
     }
 
     return NextResponse.json({ error: 'Invalid match action' }, { status: 400 });
