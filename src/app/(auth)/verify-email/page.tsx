@@ -71,9 +71,19 @@ function VerifyEmailContent() {
       });
       const data = await res.json();
       if (res.ok) {
-        setResendMsg(data.message || 'Verification code resent! Check your inbox.');
+        // If account is already verified, auto-login and enter dashboard
+        if (data.verified) {
+          setStatus('success');
+          setMessage('Account verified! Entering Educated Gamer Arena...');
+          setTimeout(() => router.push(data.redirectUrl || '/dashboard'), 800);
+          return;
+        }
+        // Show code directly on screen so user can verify without email
         if (data.code) {
           setOtp(data.code);
+          setResendMsg(`✅ Your verification code is: ${data.code} — It has been auto-filled above. Just press Verify!`);
+        } else {
+          setResendMsg(data.message || 'Verification code resent! Check your inbox or spam folder.');
         }
         setCountdown(60);
       } else {

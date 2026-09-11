@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { generateOTP } from '@/lib/auth/password';
 import { rateLimit } from '@/lib/auth/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
+import { createSession } from '@/lib/auth/session';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +30,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.emailVerified) {
-      return NextResponse.json({ message: 'Account is already verified. You can log in.' }, { status: 200 });
+      await createSession(user.id);
+      return NextResponse.json({
+        success: true,
+        verified: true,
+        message: 'Account is already verified! Logging you into the arena...',
+        redirectUrl: '/dashboard',
+      }, { status: 200 });
     }
 
     const verifyToken = generateOTP(6);
